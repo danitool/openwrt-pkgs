@@ -1,12 +1,12 @@
 /*
- * lirc_rpi.c
+ * lirc_gpioblaster.c
  *
- * lirc_rpi - Device driver that records pulse- and pause-lengths
- *	      (space-lengths) (just like the lirc_serial driver does)
- *	      between GPIO interrupt events on the Raspberry Pi.
- *	      Lots of code has been taken from the lirc_serial module,
+ * lirc_gpioblaster - Device driver that sends IR codes using a GPIO pin
+ *	      Code taken from the lirc_rpi module, receiver removed and
+ *	      gpio management changed to be generic for any device.
  *	      so I would like say thanks to the authors.
- *
+ * 
+ * Copyright (C) 2015 Daniel Gonzalez <dgcbueu@gmail.com>
  * Copyright (C) 2012 Aron Robert Szabo <aron@reon.hu>,
  *		      Michael Bishop <cleverca22@gmail.com>
  *  This program is free software; you can redistribute it and/or modify
@@ -60,25 +60,18 @@
 /* module parameters */
 
 /* set the default GPIO output pin */
-static int gpio_out_pin = 17;
+static int gpio_out_pin = 0;
 /* enable debugging messages */
 static bool debug;
-/* -1 = auto, 0 = active high, 1 = active low */
-static int sense = -1;
 /* use softcarrier by default */
 static bool softcarrier = 1;
 /* 0 = do not invert output, 1 = invert output */
 static bool invert = 0;
 
-struct gpio_chip *gpiochip;
-
 /* forward declarations */
 static long send_pulse(unsigned long length);
 static void send_space(long length);
 static void lirc_rpi_exit(void);
-
-int valid_gpio_pins[] = { 0, 1, 2, 3, 4, 7, 8, 9, 10, 11, 14, 15, 17, 18, 21,
-	22, 23, 24, 25 ,27, 28, 29, 30, 31 };
 
 static struct platform_device *lirc_rpi_dev;
 static struct timeval lasttv = { 0, 0 };
@@ -133,10 +126,10 @@ static long send_pulse_softcarrier(unsigned long length)
 
 	while (actual < length) {
 		if (flag) {
-			gpiochip->set(gpiochip, gpio_out_pin, invert);
+			gpio_set_value(gpio_out_pin, invert);
 			target += space_width;
 		} else {
-			gpiochip->set(gpiochip, gpio_out_pin, !invert);
+			gpio_set_value(gpio_out_pin, !invert);
 			target += pulse_width;
 		}
 		initial_us = actual_us;
@@ -162,7 +155,7 @@ static long send_pulse(unsigned long length)
 	if (softcarrier) {
 		return send_pulse_softcarrier(length);
 	} else {
-		gpiochip->set(gpiochip, gpio_out_pin, !invert);
+		gpio_set_value(gpio_out_pin, !invert);
 		safe_udelay(length);
 		return 0;
 	}
@@ -170,29 +163,15 @@ static long send_pulse(unsigned long length)
 
 static void send_space(long length)
 {
-	gpiochip->set(gpiochip, gpio_out_pin, invert);
+	gpio_set_value(gpio_out_pin, invert);
 	if (length <= 0)
 		return;
 	safe_udelay(length);
 }
 
-static int is_right_chip(struct gpio_chip *chip, void *data)
-{
-	dprintk("is_right_chip %s %d\n", chip->label, strcmp(data, chip->label));
-
-	if (strcmp(data, chip->label) == 0)
-		return 1;
-	return 0;
-}
-
 static int init_port(void)
 {
-	int i, nlow, nhigh, ret, irq;
-
-	gpiochip = gpiochip_find("bcm2708_gpio", is_right_chip);
-
-	if (!gpiochip)
-		return -ENODEV;
+	int ret;
 
 	if (gpio_request(gpio_out_pin, LIRC_DRIVER_NAME " ir/out")) {
 		printk(KERN_ALERT LIRC_DRIVER_NAME
@@ -201,8 +180,8 @@ static int init_port(void)
 		goto exit_init_port;
 	}
 
-	gpiochip->direction_output(gpiochip, gpio_out_pin, 1);
-	gpiochip->set(gpiochip, gpio_out_pin, invert);
+	gpio_direction_output(gpio_out_pin, 1);
+	gpio_set_value(gpio_out_pin, invert);
 
 	exit_gpio_free_out_pin:
 	gpio_free(gpio_out_pin);
@@ -243,7 +222,7 @@ static ssize_t lirc_write(struct file *file, const char *buf,
 		else
 			delta = send_pulse(wbuf[i]);
 	}
-	gpiochip->set(gpiochip, gpio_out_pin, invert);
+	gpio_set_value(gpio_out_pin, invert);
 
 	spin_unlock_irqrestore(&lock, flags);
 	kfree(wbuf);
@@ -428,19 +407,15 @@ static void __exit lirc_rpi_exit_module(void)
 module_init(lirc_rpi_init_module);
 module_exit(lirc_rpi_exit_module);
 
-MODULE_DESCRIPTION("Infra-red receiver and blaster driver for Raspberry Pi GPIO.");
+MODULE_DESCRIPTION("Infra-red gpio blaster driver for any device.");
 MODULE_AUTHOR("Aron Robert Szabo <aron@reon.hu>");
 MODULE_AUTHOR("Michael Bishop <cleverca22@gmail.com>");
+MODULE_AUTHOR("Daniel Gonzalez <dgcbueu@gmail.com>");
 MODULE_LICENSE("GPL");
 
 module_param(gpio_out_pin, int, S_IRUGO);
 MODULE_PARM_DESC(gpio_out_pin, "GPIO output/transmitter pin number of the BCM"
-		 " processor. Valid pin numbers are: 0, 1, 4, 8, 7, 9, 10, 11,"
-		 " 14, 15, 17, 18, 21, 22, 23, 24, 25, default 17");
-
-module_param(sense, int, S_IRUGO);
-MODULE_PARM_DESC(sense, "Override autodetection of IR receiver circuit"
-		 " (0 = active high, 1 = active low )");
+		 "default 17");
 
 module_param(softcarrier, bool, S_IRUGO);
 MODULE_PARM_DESC(softcarrier, "Software carrier (0 = off, 1 = on, default on)");
