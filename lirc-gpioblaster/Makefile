@@ -8,12 +8,12 @@
 include $(TOPDIR)/rules.mk
 include $(INCLUDE_DIR)/kernel.mk
 
-PKG_NAME:=lirc_bcm63xx
+PKG_NAME:=lirc_gpioblaster
 PKG_RELEASE:=1
 
 include $(INCLUDE_DIR)/package.mk
 
-define KernelPackage/lirc_bcm63xx
+define KernelPackage/lirc_gpioblaster
   SUBMENU:=Other modules
   DEPENDS:=
   KCONFIG:= \
@@ -36,8 +36,8 @@ define KernelPackage/lirc_bcm63xx
 	CONFIG_LIRC_TTUSBIR=n \
 	CONFIG_RC_LOOPBACK=n
   TITLE:=Driver for LIRC GPIO transmitter
-  FILES:=$(PKG_BUILD_DIR)/lirc_bcm63xx.ko
-  AUTOLOAD:=$(call AutoLoad,99,lirc_bcm63xx)
+  FILES:=$(PKG_BUILD_DIR)/lirc_gpioblaster.ko
+  AUTOLOAD:=$(call AutoLoad,99,lirc_gpioblaster)
 endef
 
 define Build/Prepare
@@ -54,4 +54,4 @@ define Build/Compile
 		modules
 endef
 
-$(eval $(call KernelPackage,lirc_bcm63xx))
+$(eval $(call KernelPackage,lirc_gpioblaster))

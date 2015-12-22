@@ -2,7 +2,7 @@
 # Makefile for lirc_gpioblaster driver
 #
 
-obj-m = lirc_bcm63xx.o
+obj-m = lirc_gpioblaster.o
 
 ifeq ($(MAKING_MODULES),1)
 
