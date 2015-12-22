@@ -59,8 +59,6 @@
 
 /* module parameters */
 
-/* set the default GPIO input pin */
-static int gpio_in_pin = 18;
 /* set the default GPIO output pin */
 static int gpio_out_pin = 17;
 /* enable debugging messages */
@@ -73,8 +71,6 @@ static bool softcarrier = 1;
 static bool invert = 0;
 
 struct gpio_chip *gpiochip;
-struct irq_chip *irqchip;
-struct irq_data *irqdata;
 
 /* forward declarations */
 static long send_pulse(unsigned long length);
@@ -180,114 +176,6 @@ static void send_space(long length)
 	safe_udelay(length);
 }
 
-static void rbwrite(int l)
-{
-	if (lirc_buffer_full(&rbuf)) {
-		/* no new signals will be accepted */
-		dprintk("Buffer overrun\n");
-		return;
-	}
-	lirc_buffer_write(&rbuf, (void *)&l);
-}
-
-static void frbwrite(int l)
-{
-	/* simple noise filter */
-	static int pulse, space;
-	static unsigned int ptr;
-
-	if (ptr > 0 && (l & PULSE_BIT)) {
-		pulse += l & PULSE_MASK;
-		if (pulse > 250) {
-			rbwrite(space);
-			rbwrite(pulse | PULSE_BIT);
-			ptr = 0;
-			pulse = 0;
-		}
-		return;
-	}
-	if (!(l & PULSE_BIT)) {
-		if (ptr == 0) {
-			if (l > 20000) {
-				space = l;
-				ptr++;
-				return;
-			}
-		} else {
-			if (l > 20000) {
-				space += pulse;
-				if (space > PULSE_MASK)
-					space = PULSE_MASK;
-				space += l;
-				if (space > PULSE_MASK)
-					space = PULSE_MASK;
-				pulse = 0;
-				return;
-			}
-			rbwrite(space);
-			rbwrite(pulse | PULSE_BIT);
-			ptr = 0;
-			pulse = 0;
-		}
-	}
-	rbwrite(l);
-}
-
-static irqreturn_t irq_handler(int i, void *blah, struct pt_regs *regs)
-{
-	struct timeval tv;
-	long deltv;
-	int data;
-	int signal;
-
-	/* use the GPIO signal level */
-	signal = gpiochip->get(gpiochip, gpio_in_pin);
-
-	/* unmask the irq */
-	irqchip->irq_unmask(irqdata);
-
-	if (sense != -1) {
-		/* get current time */
-		do_gettimeofday(&tv);
-
-		/* calc time since last interrupt in microseconds */
-		deltv = tv.tv_sec-lasttv.tv_sec;
-		if (tv.tv_sec < lasttv.tv_sec ||
-		    (tv.tv_sec == lasttv.tv_sec &&
-		     tv.tv_usec < lasttv.tv_usec)) {
-			printk(KERN_WARNING LIRC_DRIVER_NAME
-			       ": AIEEEE: your clock just jumped backwards\n");
-			printk(KERN_WARNING LIRC_DRIVER_NAME
-			       ": %d %d %lx %lx %lx %lx\n", signal, sense,
-			       tv.tv_sec, lasttv.tv_sec,
-			       tv.tv_usec, lasttv.tv_usec);
-			data = PULSE_MASK;
-		} else if (deltv > 15) {
-			data = PULSE_MASK; /* really long time */
-			if (!(signal^sense)) {
-				/* sanity check */
-				printk(KERN_WARNING LIRC_DRIVER_NAME
-				       ": AIEEEE: %d %d %lx %lx %lx %lx\n",
-				       signal, sense, tv.tv_sec, lasttv.tv_sec,
-				       tv.tv_usec, lasttv.tv_usec);
-				/*
-				 * detecting pulse while this
-				 * MUST be a space!
-				 */
-				sense = sense ? 0 : 1;
-			}
-		} else {
-			data = (int) (deltv*1000000 +
-				      (tv.tv_usec - lasttv.tv_usec));
-		}
-		frbwrite(signal^sense ? data : (data|PULSE_BIT));
-		lasttv = tv;
-		wake_up_interruptible(&rbuf.wait_poll);
-	}
-
-	return IRQ_HANDLED;
-}
-
 static int is_right_chip(struct gpio_chip *chip, void *data)
 {
 	dprintk("is_right_chip %s %d\n", chip->label, strcmp(data, chip->label));
@@ -313,60 +201,8 @@ static int init_port(void)
 		goto exit_init_port;
 	}
 
-	if (gpio_request(gpio_in_pin, LIRC_DRIVER_NAME " ir/in")) {
-		printk(KERN_ALERT LIRC_DRIVER_NAME
-		       ": cant claim gpio pin %d\n", gpio_in_pin);
-		ret = -ENODEV;
-		goto exit_gpio_free_out_pin;
-	}
-
-	gpiochip->direction_input(gpiochip, gpio_in_pin);
 	gpiochip->direction_output(gpiochip, gpio_out_pin, 1);
 	gpiochip->set(gpiochip, gpio_out_pin, invert);
-
-	irq = gpiochip->to_irq(gpiochip, gpio_in_pin);
-	dprintk("to_irq %d\n", irq);
-	irqdata = irq_get_irq_data(irq);
-
-	if (irqdata && irqdata->chip) {
-		irqchip = irqdata->chip;
-	} else {
-		ret = -ENODEV;
-		goto exit_gpio_free_in_pin;
-	}
-
-	/* if pin is high, then this must be an active low receiver. */
-	if (sense == -1) {
-		/* wait 1/2 sec for the power supply */
-		msleep(500);
-
-		/*
-		 * probe 9 times every 0.04s, collect "votes" for
-		 * active high/low
-		 */
-		nlow = 0;
-		nhigh = 0;
-		for (i = 0; i < 9; i++) {
-			if (gpiochip->get(gpiochip, gpio_in_pin))
-				nlow++;
-			else
-				nhigh++;
-			msleep(40);
-		}
-		sense = (nlow >= nhigh ? 1 : 0);
-		printk(KERN_INFO LIRC_DRIVER_NAME
-		       ": auto-detected active %s receiver on GPIO pin %d\n",
-		       sense ? "low" : "high", gpio_in_pin);
-	} else {
-		printk(KERN_INFO LIRC_DRIVER_NAME
-		       ": manually using active %s receiver on GPIO pin %d\n",
-		       sense ? "low" : "high", gpio_in_pin);
-	}
-
-	return 0;
-
-	exit_gpio_free_in_pin:
-	gpio_free(gpio_in_pin);
 
 	exit_gpio_free_out_pin:
 	gpio_free(gpio_out_pin);
@@ -378,65 +214,11 @@ static int init_port(void)
 // called when the character device is opened
 static int set_use_inc(void *data)
 {
-	int result;
-	unsigned long flags;
-
-	/* initialize timestamp */
-	do_gettimeofday(&lasttv);
-
-	result = request_irq(gpiochip->to_irq(gpiochip, gpio_in_pin),
-			     (irq_handler_t) irq_handler, 0,
-			     LIRC_DRIVER_NAME, (void*) 0);
-
-	switch (result) {
-	case -EBUSY:
-		printk(KERN_ERR LIRC_DRIVER_NAME
-		       ": IRQ %d is busy\n",
-		       gpiochip->to_irq(gpiochip, gpio_in_pin));
-		return -EBUSY;
-	case -EINVAL:
-		printk(KERN_ERR LIRC_DRIVER_NAME
-		       ": Bad irq number or handler\n");
-		return -EINVAL;
-	default:
-		dprintk("Interrupt %d obtained\n",
-			gpiochip->to_irq(gpiochip, gpio_in_pin));
-		break;
-	};
-
-	/* initialize pulse/space widths */
-	init_timing_params(duty_cycle, freq);
-
-	spin_lock_irqsave(&lock, flags);
-
-	/* GPIO Pin Falling/Rising Edge Detect Enable */
-	irqchip->irq_set_type(irqdata,
-			      IRQ_TYPE_EDGE_RISING | IRQ_TYPE_EDGE_FALLING);
-
-	/* unmask the irq */
-	irqchip->irq_unmask(irqdata);
-
-	spin_unlock_irqrestore(&lock, flags);
-
 	return 0;
 }
 
 static void set_use_dec(void *data)
 {
-	unsigned long flags;
-
-	spin_lock_irqsave(&lock, flags);
-
-	/* GPIO Pin Falling/Rising Edge Detect Disable */
-	irqchip->irq_set_type(irqdata, 0);
-	irqchip->irq_mask(irqdata);
-
-	spin_unlock_irqrestore(&lock, flags);
-
-	free_irq(gpiochip->to_irq(gpiochip, gpio_in_pin), (void *) 0);
-
-	dprintk(KERN_INFO LIRC_DRIVER_NAME
-		": freed IRQ %d\n", gpiochip->to_irq(gpiochip, gpio_in_pin));
 }
 
 static ssize_t lirc_write(struct file *file, const char *buf,
@@ -599,29 +381,11 @@ static void lirc_rpi_exit(void)
 
 static int __init lirc_rpi_init_module(void)
 {
-	int result, i;
+	int result;
 
 	result = lirc_rpi_init();
 	if (result)
 		return result;
-
-	/* check if the module received valid gpio pin numbers */
-	result = 0;
-	if (gpio_in_pin != gpio_out_pin) {
-		for(i = 0; (i < ARRAY_SIZE(valid_gpio_pins)) && (result != 2); i++) {
-			if (gpio_in_pin == valid_gpio_pins[i] ||
-			   gpio_out_pin == valid_gpio_pins[i]) {
-				result++;
-			}
-		}
-	}
-
-	if (result != 2) {
-		result = -EINVAL;
-		printk(KERN_ERR LIRC_DRIVER_NAME
-		       ": invalid GPIO pin(s) specified!\n");
-		goto exit_rpi;
-	}
 
 	result = init_port();
 	if (result < 0)
@@ -629,8 +393,7 @@ static int __init lirc_rpi_init_module(void)
 
 	driver.features = LIRC_CAN_SET_SEND_DUTY_CYCLE |
 			  LIRC_CAN_SET_SEND_CARRIER |
-			  LIRC_CAN_SEND_PULSE |
-			  LIRC_CAN_REC_MODE2;
+			  LIRC_CAN_SEND_PULSE;
 
 	driver.dev = &lirc_rpi_dev->dev;
 	driver.minor = lirc_register_driver(&driver);
@@ -655,7 +418,6 @@ static int __init lirc_rpi_init_module(void)
 static void __exit lirc_rpi_exit_module(void)
 {
 	gpio_free(gpio_out_pin);
-	gpio_free(gpio_in_pin);
 
 	lirc_rpi_exit();
 
@@ -675,11 +437,6 @@ module_param(gpio_out_pin, int, S_IRUGO);
 MODULE_PARM_DESC(gpio_out_pin, "GPIO output/transmitter pin number of the BCM"
 		 " processor. Valid pin numbers are: 0, 1, 4, 8, 7, 9, 10, 11,"
 		 " 14, 15, 17, 18, 21, 22, 23, 24, 25, default 17");
-
-module_param(gpio_in_pin, int, S_IRUGO);
-MODULE_PARM_DESC(gpio_in_pin, "GPIO input pin number of the BCM processor."
-		 " Valid pin numbers are: 0, 1, 4, 8, 7, 9, 10, 11, 14, 15,"
-		 " 17, 18, 21, 22, 23, 24, 25, default 18");
 
 module_param(sense, int, S_IRUGO);
 MODULE_PARM_DESC(sense, "Override autodetection of IR receiver circuit"
