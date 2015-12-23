@@ -177,24 +177,15 @@ static void send_space(long length)
 
 static int init_port(void)
 {
-	int ret;
-
 	if (gpio_request(gpio_out_pin, LIRC_DRIVER_NAME " ir/out")) {
 		printk(KERN_ALERT LIRC_DRIVER_NAME
 		       ": cant claim gpio pin %d\n", gpio_out_pin);
-		ret = -ENODEV;
-		goto exit_init_port;
+		return -ENODEV;
 	}
 
 	gpio_direction_output(gpio_out_pin, 1);
 	gpio_set_value(gpio_out_pin, invert);
 	return 0;
-
-	exit_gpio_free_out_pin:
-	gpio_free(gpio_out_pin);
-
-	exit_init_port:
-	return ret;
 }
 
 // called when the character device is opened
