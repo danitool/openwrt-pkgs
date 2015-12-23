@@ -188,6 +188,7 @@ static int init_port(void)
 
 	gpio_direction_output(gpio_out_pin, 1);
 	gpio_set_value(gpio_out_pin, invert);
+	return 0;
 
 	exit_gpio_free_out_pin:
 	gpio_free(gpio_out_pin);
