@@ -40,7 +40,7 @@
 #include <media/lirc_dev.h>
 #include <linux/gpio.h>
 
-#define LIRC_DRIVER_NAME "lirc_rpi"
+#define LIRC_DRIVER_NAME "lirc_gpioblaster"
 #define RBUF_LEN 256
 #define LIRC_TRANSMITTER_LATENCY 50
 
@@ -60,7 +60,7 @@
 /* module parameters */
 
 /* set the default GPIO output pin */
-static int gpio_out_pin = 0;
+static int gpio_out_pin = 31;
 /* enable debugging messages */
 static bool debug;
 /* use softcarrier by default */
@@ -74,7 +74,6 @@ static void send_space(long length);
 static void lirc_rpi_exit(void);
 
 static struct platform_device *lirc_rpi_dev;
-static struct timeval lasttv = { 0, 0 };
 static struct lirc_buffer rbuf;
 static spinlock_t lock;
 
@@ -92,6 +91,13 @@ static void safe_udelay(unsigned long usecs)
 		usecs -= MAX_UDELAY_US;
 	}
 	udelay(usecs);
+}
+
+static unsigned long read_current_us(void)
+{
+	struct timespec now;
+	getnstimeofday(&now);
+	return (now.tv_sec * 1000000) + (now.tv_nsec/1000);
 }
 
 static int init_timing_params(unsigned int new_duty_cycle,
@@ -122,7 +128,7 @@ static long send_pulse_softcarrier(unsigned long length)
 	length *= 1000;
 
 	actual = 0; target = 0; flag = 0;
-	read_current_timer(&actual_us);
+	actual_us = read_current_us();
 
 	while (actual < length) {
 		if (flag) {
@@ -140,7 +146,7 @@ static long send_pulse_softcarrier(unsigned long length)
 		 */
 		if  ((int)(target_us - actual_us) > 0)
 			udelay(target_us - actual_us);
-		read_current_timer(&actual_us);
+		actual_us = read_current_us();
 		actual += (actual_us - initial_us) * 1000;
 		flag = !flag;
 	}
@@ -415,7 +421,7 @@ MODULE_LICENSE("GPL");
 
 module_param(gpio_out_pin, int, S_IRUGO);
 MODULE_PARM_DESC(gpio_out_pin, "GPIO output/transmitter pin number of the BCM"
-		 "default 17");
+		 "default 31");
 
 module_param(softcarrier, bool, S_IRUGO);
 MODULE_PARM_DESC(softcarrier, "Software carrier (0 = off, 1 = on, default on)");
