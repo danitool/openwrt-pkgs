@@ -1,0 +1,15 @@
+#!/bin/sh /etc/rc.common                                                        
+
+START=90                                                                        
+
+start() {                                                                       
+        echo "Starting lirc"                                                    
+        mkdir -p /var/run/lirc                                                     
+        /usr/sbin/lircd -d /dev/lirc0                                           
+}
+
+stop() {                                                                        
+        echo "Stopping lirc"                                                    
+        /bin/kill `pidof lircd`                                                 
+        return 0                                                                
+}
