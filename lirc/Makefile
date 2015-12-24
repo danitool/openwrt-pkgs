@@ -85,6 +85,32 @@ define Package/lirc-audioalsa/description
        sound line input.
 endef
 
+define  Package/lirc-devinput
+    $(call Package/lirc/Default)
+    DEPENDS:=lirc +kmod-hid
+    TITLE:=plugin devinput
+endef
+
+define Package/lirc-devinput/description
+  Contains this additional plugin:
+   -plugin devinput:
+       receive keycodes input via /dev/input/...
+endef
+
+define  Package/lirc-ftdi
+    $(call Package/lirc/Default)
+    DEPENDS:=lirc +libftdi +libusb
+    TITLE:=plugin ftdi
+endef
+
+define Package/lirc-ftdi/description
+  Contains this additional plugin:
+   -plugin ftdi:
+       Mode2 receiver + transmitter using the bitbang mode of an FTDI
+       USB-to-serial chip such as the FT232R, with a demodulating IR receiver
+       connected to one of the FTDI chips data pins -- by default, D1 (RXD).
+endef
+
 CONFIGURE_ARGS += \
 	--disable-nls \
 	--disable-static \
@@ -92,7 +118,8 @@ CONFIGURE_ARGS += \
 	--without-x \
 	--with-pic \
 	--with-gnu-ld  \
-	--enable-sandboxed
+	--enable-sandboxed \
+	--enable-dependency-tracking
 
 MAKE_FLAGS += \
 	DESTDIR="$(PKG_INSTALL_DIR)" \
@@ -129,6 +156,18 @@ define  Package/lirc-audioalsa/install
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/plugins/.libs/audio_alsa.so $(1)/usr/lib/lirc/plugins
 endef
 
+define  Package/lirc-devinput/install
+	$(INSTALL_DIR) $(1)/usr/lib/lirc/plugins
+	$(INSTALL_BIN) $(PKG_BUILD_DIR)/plugins/.libs/devinput.so $(1)/usr/lib/lirc/plugins
+endef
+
+define  Package/lirc-ftdi/install
+	$(INSTALL_DIR) $(1)/usr/lib/lirc/plugins
+	$(INSTALL_BIN) $(PKG_BUILD_DIR)/plugins/.libs/ftdi.so $(1)/usr/lib/lirc/plugins
+endef
+
 $(eval $(call BuildPackage,lirc))
 $(eval $(call BuildPackage,lirctools))
 $(eval $(call BuildPackage,lirc-audioalsa))
+$(eval $(call BuildPackage,lirc-devinput))
+$(eval $(call BuildPackage,lirc-ftdi))
