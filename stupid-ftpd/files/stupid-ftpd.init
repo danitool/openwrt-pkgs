@@ -1,0 +1,13 @@
+#!/bin/sh /etc/rc.common
+# Copyright (C) 2006-2011 OpenWrt.org
+
+START=50
+STUPID_PID_F=$RUN_D/stupid-ftpd.pid
+
+start() {
+	/usr/sbin/stupid-ftpd -p /var/run/stupid-ftpd.pid
+}
+
+stop() {
+	[ -f $STUPID_PID_F ] && kill $(cat $STUPID_PID_F)
+}
