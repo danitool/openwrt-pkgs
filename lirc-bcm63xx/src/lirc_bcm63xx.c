@@ -123,7 +123,6 @@ static void gpiotoirq (int gpio)
 			return;
 		}
 
-	case BCM6338_CPU_ID:
 	case BCM6348_CPU_ID:
 		switch(gpio) {
 		case 32:
