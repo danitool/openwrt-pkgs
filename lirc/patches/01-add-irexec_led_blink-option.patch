@@ -1,0 +1,82 @@
+--- a/tools/irexec.c
++++ b/tools/irexec.c
+@@ -25,6 +25,8 @@
+ #include "lirc_client.h"
+ #include "lirc_log.h"
+ 
++#include <fcntl.h>
++
+ static char *prog;
+ 
+ int main(int argc, char *argv[])
+@@ -32,7 +34,9 @@
+ 	struct lirc_config *config;
+ 	int daemonize = 0;
+ 	char *program = "irexec";
+-        int r;
++	char *led_name = NULL;
++	char *path[255];
++        int r, fd;
+ 
+ 	prog = "irexec " VERSION;
+ 	while (1) {
+@@ -42,9 +46,10 @@
+ 			{"version", no_argument, NULL, 'v'},
+ 			{"daemon", no_argument, NULL, 'd'},
+ 			{"name", required_argument, NULL, 'n'},
++			{"led", required_argument, NULL, 'l'},
+ 			{0, 0, 0, 0}
+ 		};
+-		c = getopt_long(argc, argv, "hvdn:", long_options, NULL);
++		c = getopt_long(argc, argv, "hvdnl:", long_options, NULL);
+ 		if (c == -1)
+ 			break;
+ 		switch (c) {
+@@ -54,6 +59,7 @@
+ 			printf("\t -v --version\t\tdisplay version\n");
+ 			printf("\t -d --daemon\t\trun in background\n");
+ 			printf("\t -n --name\t\tuse this program name\n");
++			printf("\t -l --led [led name]\tled blinking using sysfs one-shot LED Trigger \n");
+ 			return (EXIT_SUCCESS);
+ 		case 'v':
+ 			printf("%s\n", prog);
+@@ -64,6 +70,9 @@
+ 		case 'n':
+ 			program = optarg;
+ 			break;
++		case 'l':
++			led_name = optarg;
++			break;
+ 		default:
+ 			printf("Usage: %s [options] [config_file]\n", argv[0]);
+ 			return (EXIT_FAILURE);
+@@ -91,6 +100,14 @@
+ 				exit(EXIT_FAILURE);
+ 			}
+ 		}
++
++		if (led_name) {
++			sprintf(path, "/sys/class/leds/%s/trigger", led_name);
++			fd = open(path, O_WRONLY);
++			write(fd, "oneshot", 7);
++			close(fd);
++		}
++
+ 		while (lirc_nextcode(&code) == 0) {
+ 			if (code == NULL)
+ 				continue;
+@@ -99,6 +116,14 @@
+ 					logprintf(LIRC_DEBUG,
+ 						  "Execing command \"%s\"\n", c);
+ 				}
++
++				if (led_name) {
++					sprintf(path, "/sys/class/leds/%s/shot", led_name);
++					fd = open(path, O_WRONLY);
++					write(fd, "1", 1);
++					close(fd);
++				}
++
+ 				r = system(c);
+ 				if (r != 0) {
+ 					logprintf(LIRC_NOTICE, 
