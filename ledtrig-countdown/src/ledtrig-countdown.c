@@ -52,10 +52,8 @@ static ssize_t countdown_store(struct device *dev,
 		ret = count;
 	}
 
-	if (delay != 0) {
-		led_set_brightness(led_cdev, led_cdev->max_brightness);
-		mod_timer(&timer_countdown, jiffies + msecs_to_jiffies(delay));
-	}
+	led_set_brightness(led_cdev, led_cdev->max_brightness);
+	mod_timer(&timer_countdown, jiffies + msecs_to_jiffies(delay));
 
 	return ret;
 }
