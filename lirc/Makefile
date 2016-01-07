@@ -61,13 +61,20 @@ endef
 
 define Package/lirctools/description
   This package contains those lirc-tools:
+   -irexec:   execute programs according to the pressed remote control buttons
+   -irsend:   application for sending IR-codes via lirc
+   -irrecord: record the signals from your remote control and create a config file for lircd
+   -irw:      watch the codes as lircd recognize them
+   -mode2:    shows the pulse/space length of a remote button
+   
+  NOT included:
    -ircat:   prints config strings to standard output, can be used to provide remote control input to scripts
-   -irexec:  execute programs according to the pressed remote control buttons
    -irpty:   pseudo tty driver. Connects to lircd via socket to receive infra-red codes and converts them to key strokes
-   -irsend:  application for sending IR-codes via lirc
-   -irw:     watch the codes as lircd recognize them
-   -lircrcd: daemon that manages current mode for all applications
-   -mode2:   shows the pulse/space length of a remote button
+   -irsimreceive
+   -irsimsend
+   -irtescase
+   -lirc-lsplugins
+   -lirc-lsremotes
 endef
 
 define  Package/lirc-audioalsa
@@ -112,14 +119,10 @@ define Package/lirc-ftdi/description
 endef
 
 CONFIGURE_ARGS += \
-	--disable-nls \
 	--disable-static \
-	--with-kerneldir="$(LINUX_DIR)" \
 	--without-x \
 	--with-pic \
-	--with-gnu-ld  \
-	--enable-sandboxed \
-	--enable-dependency-tracking
+	--with-gnu-ld
 
 MAKE_FLAGS += \
 	DESTDIR="$(PKG_INSTALL_DIR)" \
@@ -149,6 +152,7 @@ define  Package/lirctools/install
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/tools/.libs/irexec $(1)/usr/sbin/
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/tools/.libs/irw $(1)/usr/sbin/
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/tools/.libs/mode2 $(1)/usr/sbin/
+	$(INSTALL_BIN) $(PKG_BUILD_DIR)/tools/.libs/irrecord $(1)/usr/sbin/
 endef
 
 define  Package/lirc-audioalsa/install
