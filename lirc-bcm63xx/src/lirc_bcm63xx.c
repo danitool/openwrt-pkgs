@@ -112,10 +112,10 @@ static void gpiotoirq (int gpio)
 		case 24:
 			ext_irq = IRQ_EXT_1;
 			return;
-		case 25:
+		case 30:
 			ext_irq = IRQ_EXT_2;
 			return;
-		case 26:
+		case 31:
 			ext_irq = IRQ_EXT_3;
 			return;
 		default:
