@@ -119,7 +119,7 @@ static void gpiotoirq (int gpio)
 			ext_irq = IRQ_EXT_3;
 			return;
 		default:
-			pr_err("no IRQ at GPIO%d. Valid GPIOs are: 23, 24, 25, 26\n", gpio);
+			pr_err("no IRQ at GPIO%d. Valid GPIOs are: 23, 24, 30, 31\n", gpio);
 			return;
 		}
 
