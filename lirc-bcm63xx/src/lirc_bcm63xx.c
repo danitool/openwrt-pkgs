@@ -157,8 +157,14 @@ static void gpiotoirq (int gpio)
 		case 37:
 			ext_irq = IRQ_EXT_3;
 			return;
+		case 32:
+			ext_irq = IRQ_EXT_3 + 1;
+			return;
+		case 33:
+			ext_irq = IRQ_EXT_3 + 2;
+			return;
 		default:
-			pr_err("no IRQ at GPIO%d. Valid GPIOs are: 34, 35, 36, 37\n", gpio);
+			pr_err("no IRQ at GPIO%d. Valid GPIOs are: 32, 33, 34, 35, 36, 37\n", gpio);
 			return;
 		}
 
