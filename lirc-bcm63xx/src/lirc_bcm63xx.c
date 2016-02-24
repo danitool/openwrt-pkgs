@@ -124,7 +124,6 @@ static void gpiotoirq (int gpio)
 		}
 
 	case BCM6348_CPU_ID:
-	case BCM63268_CPU_ID:
 		switch(gpio) {
 		case 32:
 			ext_irq = IRQ_EXT_0;
