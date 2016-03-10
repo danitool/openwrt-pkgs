@@ -40,7 +40,7 @@ define KernelPackage/lirc_gpio_generic
 	CONFIG_LIRC_SIR=n \
 	CONFIG_LIRC_ZILOG=n \
 	CONFIG_RC_LOOPBACK=n
-  TITLE:=Driver for LIRC GPIO transmitter
+  TITLE:=Driver for LIRC GPIO receiver/transmitter
   FILES:=$(PKG_BUILD_DIR)/lirc_gpio_generic.ko
   AUTOLOAD:=$(call AutoLoad,99,lirc_gpio_generic)
 endef
