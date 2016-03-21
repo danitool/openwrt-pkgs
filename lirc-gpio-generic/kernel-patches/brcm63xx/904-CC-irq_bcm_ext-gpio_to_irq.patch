@@ -1,0 +1,204 @@
+--- a/arch/mips/include/asm/mach-bcm63xx/gpio.h
++++ b/arch/mips/include/asm/mach-bcm63xx/gpio.h
+@@ -3,7 +3,7 @@
+ 
+ #include <bcm63xx_gpio.h>
+ 
+-#define gpio_to_irq(gpio)	-1
++#define gpio_to_irq __gpio_to_irq
+ 
+ #define gpio_get_value __gpio_get_value
+ #define gpio_set_value __gpio_set_value
+--- a/arch/mips/include/asm/mach-bcm63xx/bcm63xx_irq.h
++++ b/arch/mips/include/asm/mach-bcm63xx/bcm63xx_irq.h
+@@ -11,5 +11,7 @@
+ #define IRQ_EXT_1			(IRQ_EXTERNAL_BASE + 1)
+ #define IRQ_EXT_2			(IRQ_EXTERNAL_BASE + 2)
+ #define IRQ_EXT_3			(IRQ_EXTERNAL_BASE + 3)
++#define IRQ_EXT_4			(IRQ_EXTERNAL_BASE + 4)
++#define IRQ_EXT_5			(IRQ_EXTERNAL_BASE + 5)
+ 
+ #endif /* ! BCM63XX_IRQ_H_ */
+--- a/drivers/gpio/gpio-bcm63xx.c
++++ b/drivers/gpio/gpio-bcm63xx.c
+@@ -32,6 +32,69 @@
+ #include <linux/of.h>
+ #include <linux/of_gpio.h>
+ 
++#include <bcm63xx_irq.h>
++
++static int bcm63xx_gpio_to_irq(struct gpio_chip *chip, unsigned gpio) 
++{
++	switch (bcm63xx_get_cpu_id()) {
++	case BCM6328_CPU_ID:
++		switch(gpio) {
++		case 12:
++			return IRQ_EXT_3;
++		case 15:
++			return IRQ_EXT_2;
++		case 23:
++			return IRQ_EXT_0;
++		case 24:
++			return IRQ_EXT_1;
++		default:
++			return -EINVAL;
++		}
++
++	case BCM6348_CPU_ID:
++	case BCM63268_CPU_ID:
++		if (!strcmp(chip->label, "bcm63xx-gpio.1"))
++			switch(gpio) {
++			case 0:
++				return IRQ_EXT_0;
++			case 1:
++				return IRQ_EXT_1;
++			case 2:
++				return IRQ_EXT_2;
++			case 3:
++				return IRQ_EXT_3;
++			default:
++				return -EINVAL;
++			}
++		else
++			return -EINVAL;
++
++	case BCM6358_CPU_ID:
++	case BCM6368_CPU_ID:
++		if (!strcmp(chip->label, "bcm63xx-gpio.1"))
++			switch(gpio) {
++			case 0:
++				return IRQ_EXT_4;
++			case 1:
++				return IRQ_EXT_5;
++			case 2:
++				return IRQ_EXT_0;
++			case 3:
++				return IRQ_EXT_1;
++			case 4:
++				return IRQ_EXT_2;
++			case 5:
++				return IRQ_EXT_3;
++			default:
++				return -EINVAL;
++			}
++		else
++			return -EINVAL;
++	default:
++		return -EINVAL;
++	}
++}
++
+ static int bcm63xx_gpio_probe(struct platform_device *pdev)
+ {
+ 	struct device *dev = &pdev->dev;
+@@ -42,7 +105,8 @@
+ 	int err;
+ 	struct bgpio_chip *bgc;
+ 	struct bgpio_pdata *pdata = dev_get_platdata(dev);
+-
++	struct gpio_chip *chip;
++	
+ 	dirout_r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+ 	dat_r = platform_get_resource(pdev, IORESOURCE_MEM, 1);
+ 	if (!dat_r || !dirout_r)
+@@ -88,8 +152,11 @@
+ 		if (pdata->ngpio > 0)
+ 			bgc->gc.ngpio = pdata->ngpio;
+ 	}
++	
++	chip = &bgc->gc;
++	chip->to_irq = bcm63xx_gpio_to_irq;
+ 
+-	return gpiochip_add(&bgc->gc);
++	return gpiochip_add(chip);
+ }
+ 
+ static int bcm63xx_gpio_remove(struct platform_device *pdev)
+--- a/drivers/irqchip/irq-bcm6345-ext.c
++++ b/drivers/irqchip/irq-bcm6345-ext.c
+@@ -16,6 +16,7 @@
+ #include <linux/of_address.h>
+ #include <linux/slab.h>
+ #include <linux/spinlock.h>
++#include <bcm63xx_io.h>
+ 
+ #include "irqchip.h"
+ 
+@@ -71,9 +72,9 @@ static void bcm6345_ext_intc_irq_ack(str
+ 	u32 reg;
+ 
+ 	raw_spin_lock(&priv->lock);
+-	reg = __raw_readl(priv->reg);
+-	reg |= hwirq << (EXTIRQ_CFG_CLEAR * priv->shift);
+-	__raw_writel(reg, priv->reg);
++	reg = bcm_readl(priv->reg);
++	reg |= 1 << (hwirq + EXTIRQ_CFG_CLEAR * priv->shift);
++	bcm_writel(reg, priv->reg);
+ 	raw_spin_unlock(&priv->lock);
+ }
+ 
+@@ -84,9 +85,9 @@ static void bcm6345_ext_intc_irq_mask(st
+ 	u32 reg;
+ 
+ 	raw_spin_lock(&priv->lock);
+-	reg = __raw_readl(priv->reg);
+-	reg &= ~(hwirq << (EXTIRQ_CFG_MASK * priv->shift));
+-	__raw_writel(reg, priv->reg);
++	reg = bcm_readl(priv->reg);
++	reg &= ~(1 << (hwirq + EXTIRQ_CFG_MASK * priv->shift));
++	bcm_writel(reg, priv->reg);
+ 	raw_spin_unlock(&priv->lock);
+ }
+ 
+@@ -97,9 +98,9 @@ static void bcm6345_ext_intc_irq_unmask(
+ 	u32 reg;
+ 
+ 	raw_spin_lock(&priv->lock);
+-	reg = __raw_readl(priv->reg);
+-	reg |= hwirq << (EXTIRQ_CFG_MASK * priv->shift);
+-	__raw_writel(reg, priv->reg);
++	reg = bcm_readl(priv->reg);
++	reg |= 1 << (hwirq + EXTIRQ_CFG_MASK * priv->shift);
++	bcm_writel(reg, priv->reg);
+ 	raw_spin_unlock(&priv->lock);
+ }
+ 
+@@ -143,22 +144,22 @@ static int bcm6345_ext_intc_set_type(str
+ 	}
+ 
+ 	raw_spin_lock(&priv->lock);
+-	reg = __raw_readl(priv->reg);
++	reg = bcm_readl(priv->reg);
+ 
+ 	if (levelsense)
+-		reg |= hwirq << (EXTIRQ_CFG_LEVELSENSE * priv->shift);
++		reg |= 1 << (hwirq + EXTIRQ_CFG_LEVELSENSE * priv->shift);
+ 	else
+-		reg &= ~(hwirq << (EXTIRQ_CFG_LEVELSENSE * priv->shift));
++		reg &= ~(1 << (hwirq + EXTIRQ_CFG_LEVELSENSE * priv->shift));
+ 	if (sense)
+-		reg |= hwirq << (EXTIRQ_CFG_SENSE * priv->shift);
++		reg |= 1 << (hwirq + EXTIRQ_CFG_SENSE * priv->shift);
+ 	else
+-		reg &= ~(hwirq << (EXTIRQ_CFG_SENSE * priv->shift));
++		reg &= ~(1 << (hwirq + EXTIRQ_CFG_SENSE * priv->shift));
+ 	if (bothedge)
+-		reg |= hwirq << (EXTIRQ_CFG_BOTHEDGE * priv->shift);
++		reg |= 1 << (hwirq + EXTIRQ_CFG_BOTHEDGE * priv->shift);
+ 	else
+-		reg &= ~(hwirq << (EXTIRQ_CFG_BOTHEDGE * priv->shift));
++		reg &= ~(1 << (hwirq + EXTIRQ_CFG_BOTHEDGE * priv->shift));
+ 
+-	__raw_writel(reg, priv->reg);
++	bcm_writel(reg, priv->reg);
+ 	raw_spin_unlock(&priv->lock);
+ 
+ 	irqd_set_trigger_type(data, flow_type);
+@@ -208,6 +209,7 @@ static int __init __bcm6345_ext_intc_ini
+ 
+ 	data->reg = reg;
+ 
++	data->shift = shift;
+ 	data->chip.name = "bcm6345-ext-intc";
+ 	data->chip.irq_ack = bcm6345_ext_intc_irq_ack;
+ 	data->chip.irq_mask = bcm6345_ext_intc_irq_mask; 

@@ -56,14 +56,14 @@ define KernelPackage/lirc_gpio_generic/description
 
   OpenWrt version tested
   --------------
-  OK: Barrier Breaker
+  OK: Chaos Calmer
 endef
 
 define Build/Prepare
 	$(CP) ./kernel-patches/ar71xx/728-MIPS-ath79-add-gpio-irq.patch \
-		$(TOPDIR)/target/linux/ar71xx/patches-3.10/
-	$(CP) ./kernel-patches/brcm63xx/999-BB-bcm63xx-gpio_to_irq.patch \
-		$(TOPDIR)/target/linux/brcm63xx/patches-3.10/
+		$(TOPDIR)/target/linux/ar71xx/patches-3.18/
+	$(CP) ./kernel-patches/brcm63xx/904-CC-irq_bcm_ext-gpio_to_irq.patch \
+		$(TOPDIR)/target/linux/brcm63xx/patches-3.18/
 	mkdir -p $(PKG_BUILD_DIR)
 	$(CP) ./src/* $(PKG_BUILD_DIR)/
 endef

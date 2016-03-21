@@ -59,9 +59,9 @@
 /* module parameters */
 
 /* set the default GPIO input pin */
-static int gpio_in_pin = 9;
+static int gpio_in_pin = 33;
 /* set the default GPIO output pin */
-static int gpio_out_pin = 10;
+static int gpio_out_pin = 34;
 /* enable debugging messages */
 static bool debug;
 /* -1 = auto, 0 = active high, 1 = active low */
@@ -290,19 +290,43 @@ static irqreturn_t irq_handler(int i, void *blah, struct pt_regs *regs)
 
 	return IRQ_HANDLED;
 }
-#if 0
-static int is_right_chip(struct gpio_chip *chip, void *data)
-{
-	dprintk("is_right_chip %s %d\n", chip->label, strcmp(data, chip->label));
 
-	if (strcmp(data, chip->label) == 0)
+static int gpiochip_match(struct gpio_chip *chip, void *data)
+{
+	if ((int*)chip->base == data )
 		return 1;
+	
 	return 0;
 }
-#endif
+
+static int gpio_calc_base(void)
+{
+	struct gpio_chip *gpiochip;
+	int i;
+
+	/* Iterate over all possible GPIOs until we find the first GPIO chip, matching the base */
+	for (i = 0 ; i < ARCH_NR_GPIOS; i++){
+		gpiochip = gpiochip_find((int*)i, gpiochip_match);
+		if (gpiochip) {
+			  /* This is the first GPIO chip, we will use it as a global base even
+			   * if there exist more gpiochips */ 
+			  printk(KERN_INFO LIRC_DRIVER_NAME 
+				  ": Found GPIO chip, label = %s, base = %d\n", gpiochip->label, i);
+			  return i;
+		}
+	}
+
+	return 0;
+}
+
 static int init_port(void)
 {
 	int i, nlow, nhigh, ret, irq;
+	unsigned int base = gpio_calc_base();
+
+	/* Translate our GPIO number into absolute number */
+	gpio_in_pin = gpio_in_pin + base;
+	gpio_out_pin = gpio_out_pin + base;
 #if 0
 	gpiochip = gpiochip_find("bcm2708_gpio", is_right_chip);
 
