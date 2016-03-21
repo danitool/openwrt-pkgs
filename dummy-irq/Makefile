@@ -19,7 +19,6 @@ define KernelPackage/dummy-irq
   KCONFIG:=
   TITLE:=Dummy IRQ handler
   FILES:=$(PKG_BUILD_DIR)/dummy-irq.ko
-  AUTOLOAD:=$(call AutoLoad,98,dummy-irq)
 endef
 
 define KernelPackage/dummy-irq/description
