@@ -38,6 +38,7 @@ define KernelPackage/lirc_gpioblaster
 	CONFIG_LIRC_SASEM=n \
 	CONFIG_LIRC_SERIAL=n \
 	CONFIG_LIRC_SIR=n \
+	CONFIG_LIRC_ZILOG=n \
 	CONFIG_RC_LOOPBACK=n
   TITLE:=Driver for LIRC GPIO transmitter
   FILES:=$(PKG_BUILD_DIR)/lirc_gpioblaster.ko
