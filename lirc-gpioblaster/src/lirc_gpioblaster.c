@@ -68,6 +68,8 @@ static bool softcarrier = 1;
 /* 0 = do not invert output, 1 = invert output */
 static bool invert = 0;
 
+struct gpio_chip *gpiochip;
+
 /* forward declarations */
 static long send_pulse(unsigned long length);
 static void send_space(long length);
@@ -132,10 +134,10 @@ static long send_pulse_softcarrier(unsigned long length)
 
 	while (actual < length) {
 		if (flag) {
-			gpio_set_value(gpio_out_pin, invert);
+			gpiochip->set(gpiochip, gpio_out_pin, invert);
 			target += space_width;
 		} else {
-			gpio_set_value(gpio_out_pin, !invert);
+			gpiochip->set(gpiochip, gpio_out_pin, !invert);
 			target += pulse_width;
 		}
 		initial_us = actual_us;
@@ -161,7 +163,7 @@ static long send_pulse(unsigned long length)
 	if (softcarrier) {
 		return send_pulse_softcarrier(length);
 	} else {
-		gpio_set_value(gpio_out_pin, !invert);
+		gpiochip->set(gpiochip, gpio_out_pin, !invert);
 		safe_udelay(length);
 		return 0;
 	}
@@ -169,22 +171,39 @@ static long send_pulse(unsigned long length)
 
 static void send_space(long length)
 {
-	gpio_set_value(gpio_out_pin, invert);
+	gpiochip->set(gpiochip, gpio_out_pin, invert);
 	if (length <= 0)
 		return;
 	safe_udelay(length);
 }
 
+static int gpiochip_match(struct gpio_chip *chip, void *data)
+{
+	if (chip->label)
+		return 1;
+
+	return 0;
+}
+
 static int init_port(void)
 {
+	gpiochip = gpiochip_find(NULL, gpiochip_match);
+
+	if (gpiochip) {
+		printk(KERN_INFO LIRC_DRIVER_NAME 
+			": Found GPIO chip, label = %s\n", gpiochip->label);
+	}
+	else
+		return -ENODEV;
+
 	if (gpio_request(gpio_out_pin, LIRC_DRIVER_NAME " ir/out")) {
 		printk(KERN_ALERT LIRC_DRIVER_NAME
 		       ": cant claim gpio pin %d\n", gpio_out_pin);
 		return -ENODEV;
 	}
 
-	gpio_direction_output(gpio_out_pin, 1);
-	gpio_set_value(gpio_out_pin, invert);
+	gpiochip->direction_output(gpiochip, gpio_out_pin, 1);
+	gpiochip->set(gpiochip, gpio_out_pin, invert);
 	return 0;
 }
 
@@ -220,7 +239,7 @@ static ssize_t lirc_write(struct file *file, const char *buf,
 		else
 			delta = send_pulse(wbuf[i]);
 	}
-	gpio_set_value(gpio_out_pin, invert);
+	gpiochip->set(gpiochip, gpio_out_pin, invert);
 
 	spin_unlock_irqrestore(&lock, flags);
 	kfree(wbuf);
