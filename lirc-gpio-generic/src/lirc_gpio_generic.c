@@ -293,7 +293,7 @@ static irqreturn_t irq_handler(int i, void *blah, struct pt_regs *regs)
 
 static int gpiochip_match(struct gpio_chip *chip, void *data)
 {
-	if ((int*)chip->base == data )
+	if (chip->base == *(int *)data)
 		return 1;
 	
 	return 0;
@@ -306,7 +306,7 @@ static int gpio_calc_base(void)
 
 	/* Iterate over all possible GPIOs until we find the first GPIO chip, matching the base */
 	for (i = 0 ; i < ARCH_NR_GPIOS; i++){
-		gpiochip = gpiochip_find((int*)i, gpiochip_match);
+		gpiochip = gpiochip_find(&i, gpiochip_match);
 		if (gpiochip) {
 			  /* This is the first GPIO chip, we will use it as a global base even
 			   * if there exist more gpiochips */ 
