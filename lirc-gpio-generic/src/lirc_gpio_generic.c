@@ -457,7 +457,7 @@ static void set_use_dec(void *data)
 
 	spin_unlock_irqrestore(&lock, flags);
 
-	free_irq(gpio_to_irq(gpio_in_pin), (void *) 0);
+	free_irq(gpio_to_irq(gpio_in_pin), NULL);
 
 	dprintk(KERN_INFO LIRC_DRIVER_NAME
 		": freed IRQ %d\n", gpio_to_irq(gpio_in_pin));
