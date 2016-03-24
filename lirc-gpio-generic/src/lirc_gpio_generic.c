@@ -410,7 +410,7 @@ static int set_use_inc(void *data)
 
 	result = request_irq(gpio_to_irq(gpio_in_pin),
 			     (irq_handler_t) irq_handler, 0,
-			     LIRC_DRIVER_NAME, (void*) 0);
+			     LIRC_DRIVER_NAME, NULL);
 
 	switch (result) {
 	case -EBUSY:
