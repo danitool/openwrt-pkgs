@@ -364,9 +364,6 @@ static int init_port(void)
 
 	/* if pin is high, then this must be an active low receiver. */
 	if (sense == -1) {
-		/* wait 1/2 sec for the power supply */
-		msleep(500);
-
 		/*
 		 * probe 9 times every 0.04s, collect "votes" for
 		 * active high/low
