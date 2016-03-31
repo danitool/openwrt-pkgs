@@ -64,9 +64,6 @@
 
 /* module parameters */
 
-/* default external IRQ */
-static int ext_irq = IRQ_EXT_0;
-
 /* set the default GPIO input pin */
 static int gpio_in_pin = 33;
 /* set the default GPIO output pin */
@@ -101,76 +98,62 @@ static unsigned long pulse_width;
 static unsigned long space_width;
 
 
-static void gpiotoirq (int gpio) 
+static int gpiotoirq(int gpio) 
 {
 	switch (bcm63xx_get_cpu_id()) {
 	case BCM6328_CPU_ID:
 		switch(gpio) {
 		case 23:
-			ext_irq = IRQ_EXT_0;
-			return;
+			return IRQ_EXT_0;
 		case 24:
-			ext_irq = IRQ_EXT_1;
-			return;
+			return IRQ_EXT_1;
 		case 15:
-			ext_irq = IRQ_EXT_2;
-			return;
+			return IRQ_EXT_2;
 		case 12:
-			ext_irq = IRQ_EXT_3;
-			return;
+			return IRQ_EXT_3;
 		default:
 			pr_err("no IRQ at GPIO%d. Valid GPIOs are: 23, 24, 15, 12\n", gpio);
-			return;
+			return -EINVAL;
 		}
 
 	case BCM6348_CPU_ID:
 		switch(gpio) {
 		case 32:
-			ext_irq = IRQ_EXT_0;
-			return;
+			return IRQ_EXT_0;
 		case 33:
-			ext_irq = IRQ_EXT_1;
-			return;
+			return IRQ_EXT_1;
 		case 34:
-			ext_irq = IRQ_EXT_2;
-			return;
+			return IRQ_EXT_2;
 		case 35:
-			ext_irq = IRQ_EXT_3;
-			return;
+			return IRQ_EXT_3;
 		default:
 			pr_err("no IRQ at GPIO%d. Valid GPIOs are: 32, 33, 34, 35\n", gpio);
-			return;
+			return -EINVAL;
 		}
 
 	case BCM6358_CPU_ID:
 	case BCM6368_CPU_ID:
 		switch(gpio) {
 		case 34:
-			ext_irq = IRQ_EXT_0;
-			return;
+			return IRQ_EXT_0;
 		case 35:
-			ext_irq = IRQ_EXT_1;
-			return;
+			return IRQ_EXT_1;
 		case 36:
-			ext_irq = IRQ_EXT_2;
-			return;
+			return IRQ_EXT_2;
 		case 37:
-			ext_irq = IRQ_EXT_3;
-			return;
+			return IRQ_EXT_3;
 		case 32:
-			ext_irq = IRQ_EXT_3 + 1;
-			return;
+			return IRQ_EXT_3 + 1;
 		case 33:
-			ext_irq = IRQ_EXT_3 + 2;
-			return;
+			return IRQ_EXT_3 + 2;
 		default:
 			pr_err("no IRQ at GPIO%d. Valid GPIOs are: 32, 33, 34, 35, 36, 37\n", gpio);
-			return;
+			return -EINVAL;
 		}
 
 	default:
 		pr_err("SoC %x still not supported\n", bcm63xx_get_cpu_id());
-		return;
+		return -EINVAL;
 	}
 }
 
@@ -410,9 +393,8 @@ static int init_port(void)
 	gpio_direction_output(gpio_out_pin, 1);
 	gpio_set_value(gpio_out_pin, invert);
 
-	gpiotoirq(gpio_in_pin);
-	dprintk("to_irq %d\n", ext_irq);
-	irqdata = irq_get_irq_data(ext_irq);
+	dprintk("to_irq %d\n", gpiotoirq(gpio_in_pin));
+	irqdata = irq_get_irq_data(gpiotoirq(gpio_in_pin));
 
 	if (irqdata && irqdata->chip) {
 		irqchip = irqdata->chip;
@@ -469,8 +451,7 @@ static int set_use_inc(void *data)
 
 	/* initialize timestamp */
 	do_gettimeofday(&lasttv);
-	gpiotoirq(gpio_in_pin);
-	result = request_irq(ext_irq,
+	result = request_irq(gpiotoirq(gpio_in_pin),
 			     (irq_handler_t) irq_handler, 0,
 			     LIRC_DRIVER_NAME, (void*) 0);
 
@@ -478,7 +459,7 @@ static int set_use_inc(void *data)
 	case -EBUSY:
 		printk(KERN_ERR LIRC_DRIVER_NAME
 		       ": IRQ %d is busy\n",
-		       ext_irq);
+		       gpiotoirq(gpio_in_pin));
 		return -EBUSY;
 	case -EINVAL:
 		printk(KERN_ERR LIRC_DRIVER_NAME
@@ -486,7 +467,7 @@ static int set_use_inc(void *data)
 		return -EINVAL;
 	default:
 		dprintk("Interrupt %d obtained\n",
-			ext_irq);
+			gpiotoirq(gpio_in_pin));
 		break;
 	};
 
@@ -519,11 +500,10 @@ static void set_use_dec(void *data)
 
 	spin_unlock_irqrestore(&lock, flags);
 
-	gpiotoirq(gpio_in_pin);
-	free_irq(ext_irq, (void *) 0);
+	free_irq(gpiotoirq(gpio_in_pin), (void *) 0);
 
 	dprintk(KERN_INFO LIRC_DRIVER_NAME
-		": freed IRQ %d\n", ext_irq);
+		": freed IRQ %d\n", gpiotoirq(gpio_in_pin));
 }
 
 static ssize_t lirc_write(struct file *file, const char *buf,
