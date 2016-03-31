@@ -29,7 +29,6 @@
 #include <linux/sched.h>
 #include <linux/kernel.h>
 #include <linux/time.h>
-#include <linux/timex.h>
 #include <linux/string.h>
 #include <linux/delay.h>
 #include <linux/platform_device.h>
@@ -96,7 +95,6 @@ static unsigned int duty_cycle = 50;
 static unsigned long period;
 static unsigned long pulse_width;
 static unsigned long space_width;
-
 
 static int gpiotoirq(int gpio) 
 {
@@ -356,25 +354,11 @@ static irqreturn_t irq_handler(int i, void *blah, struct pt_regs *regs)
 
 	return IRQ_HANDLED;
 }
-#if 0
-static int is_right_chip(struct gpio_chip *chip, void *data)
-{
-	dprintk("is_right_chip %s %d\n", chip->label, strcmp(data, chip->label));
 
-	if (strcmp(data, chip->label) == 0)
-		return 1;
-	return 0;
-}
-#endif
 static int init_port(void)
 {
 	int i, nlow, nhigh, ret;
-#if 0
-	gpiochip = gpiochip_find("bcm2708_gpio", is_right_chip);
 
-	if (!gpiochip)
-		return -ENODEV;
-#endif
 	if (gpio_request(gpio_out_pin, LIRC_DRIVER_NAME " ir/out")) {
 		printk(KERN_ALERT LIRC_DRIVER_NAME
 		       ": cant claim gpio pin %d\n", gpio_out_pin);
@@ -405,9 +389,6 @@ static int init_port(void)
 
 	/* if pin is high, then this must be an active low receiver. */
 	if (sense == -1) {
-		/* wait 1/2 sec for the power supply */
-		msleep(500);
-
 		/*
 		 * probe 9 times every 0.04s, collect "votes" for
 		 * active high/low
@@ -453,7 +434,7 @@ static int set_use_inc(void *data)
 	do_gettimeofday(&lasttv);
 	result = request_irq(gpiotoirq(gpio_in_pin),
 			     (irq_handler_t) irq_handler, 0,
-			     LIRC_DRIVER_NAME, (void*) 0);
+			     LIRC_DRIVER_NAME, NULL);
 
 	switch (result) {
 	case -EBUSY:
@@ -500,7 +481,7 @@ static void set_use_dec(void *data)
 
 	spin_unlock_irqrestore(&lock, flags);
 
-	free_irq(gpiotoirq(gpio_in_pin), (void *) 0);
+	free_irq(gpiotoirq(gpio_in_pin), NULL);
 
 	dprintk(KERN_INFO LIRC_DRIVER_NAME
 		": freed IRQ %d\n", gpiotoirq(gpio_in_pin));
