@@ -71,6 +71,11 @@ static bool softcarrier = 1;
 /* 0 = do not invert output, 1 = invert output */
 static bool invert = 0;
 
+/* gpio chip used for output */
+struct gpio_chip *gco;
+/* gpio chip used for input */
+struct gpio_chip *gci;
+
 struct irq_chip *irqchip;
 struct irq_data *irqdata;
 
@@ -139,10 +144,10 @@ static long send_pulse_softcarrier(unsigned long length)
 
 	while (actual < length) {
 		if (flag) {
-			gpio_set_value(gpio_out_pin, invert);
+			gco->set(gco, gpio_out_pin, invert);
 			target += space_width;
 		} else {
-			gpio_set_value(gpio_out_pin, !invert);
+			gco->set(gco, gpio_out_pin, !invert);
 			target += pulse_width;
 		}
 		initial_us = actual_us;
@@ -169,7 +174,7 @@ static long send_pulse(unsigned long length)
 	if (softcarrier) {
 		return send_pulse_softcarrier(length);
 	} else {
-		gpio_set_value(gpio_out_pin, !invert);
+		gco->set(gco, gpio_out_pin, !invert);
 		safe_udelay(length);
 		return 0;
 	}
@@ -177,7 +182,7 @@ static long send_pulse(unsigned long length)
 
 static void send_space(long length)
 {
-	gpio_set_value(gpio_out_pin, invert);
+	gco->set(gco, gpio_out_pin, invert);
 	if (length <= 0)
 		return;
 	safe_udelay(length);
@@ -244,7 +249,7 @@ static irqreturn_t irq_handler(int i, void *blah, struct pt_regs *regs)
 	int signal;
 
 	/* use the GPIO signal level */
-	signal = gpio_get_value(gpio_in_pin);
+	signal = gci->get(gci, gpio_in_pin);
 
 	/* unmask the irq */
 	irqchip->irq_unmask(irqdata);
@@ -295,7 +300,7 @@ static int gpiochip_match(struct gpio_chip *chip, void *data)
 {
 	if (chip->base == *(int *)data)
 		return 1;
-	
+
 	return 0;
 }
 
@@ -325,14 +330,9 @@ static int init_port(void)
 	unsigned int base = gpio_calc_base();
 
 	/* Translate our GPIO number into absolute number */
-	gpio_in_pin = gpio_in_pin + base;
 	gpio_out_pin = gpio_out_pin + base;
-#if 0
-	gpiochip = gpiochip_find("bcm2708_gpio", is_right_chip);
+	gpio_in_pin = gpio_in_pin + base;
 
-	if (!gpiochip)
-		return -ENODEV;
-#endif
 	if (gpio_request(gpio_out_pin, LIRC_DRIVER_NAME " ir/out")) {
 		printk(KERN_ALERT LIRC_DRIVER_NAME
 		       ": cant claim gpio pin %d\n", gpio_out_pin);
@@ -387,6 +387,23 @@ static int init_port(void)
 		       sense ? "low" : "high", gpio_in_pin);
 	}
 
+	/* we have the gpio absolute number, translate into descriptor and 
+	 * get the gpio chip it belongs to. In some devices there is more 
+	 * than one gpio chip. "gco" can be equal to "gci" or not depending on
+	 * the device and the choosed GPIOs */ 
+	gco = gpiod_to_chip(gpio_to_desc(gpio_out_pin));
+	gci = gpiod_to_chip(gpio_to_desc(gpio_in_pin));
+
+	/* get the offset at the gpio chip 
+	 * (we will use offsets for better performance) */
+	gpio_out_pin = gpio_out_pin - gco->base;
+	gpio_in_pin = gpio_in_pin - gci->base;
+
+	printk(KERN_INFO LIRC_DRIVER_NAME
+	       " IN: %s, base = %d, offset = %d\n", gci->label, gci->base, gpio_in_pin);
+	printk(KERN_INFO LIRC_DRIVER_NAME
+	       " OUT: %s, base = %d, offset = %d\n", gco->label, gco->base, gpio_out_pin);
+
 	return 0;
 
 	exit_gpio_free_in_pin:
@@ -408,7 +425,7 @@ static int set_use_inc(void *data)
 	/* initialize timestamp */
 	do_gettimeofday(&lasttv);
 
-	result = request_irq(gpio_to_irq(gpio_in_pin),
+	result = request_irq(gci->to_irq(gci, gpio_in_pin),
 			     (irq_handler_t) irq_handler, 0,
 			     LIRC_DRIVER_NAME, NULL);
 
@@ -416,7 +433,7 @@ static int set_use_inc(void *data)
 	case -EBUSY:
 		printk(KERN_ERR LIRC_DRIVER_NAME
 		       ": IRQ %d is busy\n",
-		       gpio_to_irq(gpio_in_pin));
+		       gci->to_irq(gci, gpio_in_pin));
 		return -EBUSY;
 	case -EINVAL:
 		printk(KERN_ERR LIRC_DRIVER_NAME
@@ -424,7 +441,7 @@ static int set_use_inc(void *data)
 		return -EINVAL;
 	default:
 		dprintk("Interrupt %d obtained\n",
-			gpio_to_irq(gpio_in_pin));
+			gci->to_irq(gci, gpio_in_pin));
 		break;
 	};
 
@@ -457,10 +474,10 @@ static void set_use_dec(void *data)
 
 	spin_unlock_irqrestore(&lock, flags);
 
-	free_irq(gpio_to_irq(gpio_in_pin), NULL);
+	free_irq(gci->to_irq(gci, gpio_in_pin), NULL);
 
 	dprintk(KERN_INFO LIRC_DRIVER_NAME
-		": freed IRQ %d\n", gpio_to_irq(gpio_in_pin));
+		": freed IRQ %d\n", gci->to_irq(gci, gpio_in_pin));
 }
 
 static ssize_t lirc_write(struct file *file, const char *buf,
@@ -485,7 +502,7 @@ static ssize_t lirc_write(struct file *file, const char *buf,
 		else
 			delta = send_pulse(wbuf[i]);
 	}
-	gpio_set_value(gpio_out_pin, invert);
+	gco->set(gco, gpio_out_pin, invert);
 
 	spin_unlock_irqrestore(&lock, flags);
 	kfree(wbuf);
@@ -660,8 +677,8 @@ static int __init lirc_rpi_init_module(void)
 
 static void __exit lirc_rpi_exit_module(void)
 {
-	gpio_free(gpio_out_pin);
-	gpio_free(gpio_in_pin);
+	gpio_free(gpio_out_pin + gco->base);
+	gpio_free(gpio_in_pin + gci->base);
 
 	lirc_rpi_exit();
 
