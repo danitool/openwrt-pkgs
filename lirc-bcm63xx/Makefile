@@ -35,7 +35,7 @@ define KernelPackage/lirc_bcm63xx
 	CONFIG_LIRC_SIR=n \
 	CONFIG_LIRC_TTUSBIR=n \
 	CONFIG_RC_LOOPBACK=n
-  TITLE:=Driver for LIRC GPIO transmitter
+  TITLE:=Driver for LIRC GPIO receiver/transmitter
   FILES:=$(PKG_BUILD_DIR)/lirc_bcm63xx.ko
   AUTOLOAD:=$(call AutoLoad,99,lirc_bcm63xx)
 endef
