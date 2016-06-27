@@ -1,23 +1,22 @@
 #
 # Copyright (C) 2015 OpenWrt.org
 #
-# This is free software, licensed under the GNU General Public License v2.
+# This is free software, licensed undejr the GNU General Public License v2.
 # See /LICENSE for more information.
 #
 
 include $(TOPDIR)/rules.mk
-# we use the $LINUX_DIR variable, which is defined in kernel.mk
-include $(INCLUDE_DIR)/kernel.mk
 
 PKG_NAME:=lirc
-PKG_VERSION:=0.9.2a
+PKG_VERSION:=0.9.4
 PKG_RELEASE:=1
 
 PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.bz2
 PKG_SOURCE_URL:=@SF/${PKG_NAME}
-PKG_MD5SUM:=639a14ed0b3b34ae227a047b952ea368
+PKG_MD5SUM:=da6aca942154256bff696d1ffa3ef646
 
 PKG_BUILD_PARALLEL:=1
+PKG_BUILD_DEPENDS:=libusb-compat
 
 include $(INCLUDE_DIR)/package.mk
 
@@ -30,7 +29,7 @@ endef
 define Package/lirc
     $(call Package/lirc/Default)
     TITLE:=LIRC - Linux Infrared Remote Control
-    DEPENDS:=+libpthread @!LINUX_2_6
+    DEPENDS:=+libpthread +libstdcpp
     MENU:=1
 endef
 
@@ -40,16 +39,17 @@ define Package/lirc/description
   remote controls.
   This package contains only lircd and lircd.conf!
 
-tested drivers
+tested plugins
 --------------
 ok:
-lirc_gpioblaster
+default
+audio_alsa
 
 nok:
 todo
 
 unknown: 
-todo
+lirc-ftdi
 
 endef
 
@@ -118,13 +118,21 @@ define Package/lirc-ftdi/description
        connected to one of the FTDI chips data pins -- by default, D1 (RXD).
 endef
 
+define Build/Prepare
+	$(call Build/Prepare/Default)
+	sed -i "17114s/yes/no/g" $(PKG_BUILD_DIR)/configure
+endef
+
 CONFIGURE_ARGS += \
+	MAN2HTML="no" \
+	SH_PATH="/bin/sh" \
 	--disable-static \
 	--without-x \
 	--with-pic \
 	--with-gnu-ld
 
 MAKE_FLAGS += \
+	--ignore-errors \
 	DESTDIR="$(PKG_INSTALL_DIR)" \
 	ARCH="$(LINUX_KARCH)"
 
@@ -133,10 +141,11 @@ define  Package/lirc/install
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/daemons/.libs/lircd $(1)/usr/sbin/
 	$(INSTALL_DIR) $(1)/etc/lirc
 	$(INSTALL_CONF) ./files/lircd.conf $(1)/etc/lirc/
+	$(INSTALL_CONF) ./files/lircrc $(1)/etc/lirc/
 	$(INSTALL_DIR) $(1)/usr/lib/
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/lib/.libs/liblirc_driver.so.0 $(1)/usr/lib/
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/lib/.libs/liblirc_client.so.0 $(1)/usr/lib/
-	#$(INSTALL_BIN) $(PKG_BUILD_DIR)/lib/.libs/liblirc_client.so.0.3.0 $(1)/usr/lib/
+	#$(INSTALL_BIN) $(PKG_BUILD_DIR)/lib/.libs/liblirc_client.so.0.4.0 $(1)/usr/lib/
 	#$(INSTALL_BIN) $(PKG_BUILD_DIR)/lib/.libs/liblirc.so $(1)/usr/lib/
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/lib/.libs/liblirc.so.0 $(1)/usr/lib/
 	#$(INSTALL_BIN) $(PKG_BUILD_DIR)/lib/.libs/liblirc.so.0.0.0 $(1)/usr/lib/
@@ -153,6 +162,8 @@ define  Package/lirctools/install
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/tools/.libs/irw $(1)/usr/sbin/
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/tools/.libs/mode2 $(1)/usr/sbin/
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/tools/.libs/irrecord $(1)/usr/sbin/
+	$(INSTALL_DIR) $(1)/usr/lib/
+	$(INSTALL_BIN) $(PKG_BUILD_DIR)/lib/.libs/libirrecord.so.0 $(1)/usr/lib/
 endef
 
 define  Package/lirc-audioalsa/install

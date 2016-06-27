@@ -1,9 +1,9 @@
---- a/tools/irexec.c
-+++ b/tools/irexec.c
-@@ -21,10 +21,15 @@
- #include <stdlib.h>
- #include <string.h>
+--- a/tools/irexec.cpp
++++ b/tools/irexec.cpp
+@@ -26,10 +26,15 @@
  #include <getopt.h>
+ #include <sys/types.h>
+ #include <sys/wait.h>
 +#include <fcntl.h>
  
  #include "lirc_client.h"
@@ -13,97 +13,89 @@
 +#define LED_TRIGGER	LED_ROOT "trigger"
 +#define LED_SHOT	LED_ROOT "shot"
 +
- static char *prog;
+ static const logchannel_t logchannel = LOG_APP;
  
- int main(int argc, char *argv[])
-@@ -32,7 +37,9 @@
- 	struct lirc_config *config;
- 	int daemonize = 0;
- 	char *program = "irexec";
--        int r;
-+	char *led_name = NULL;
-+	char path[255] = {};
-+	int r, fd;
+ static const char* const USAGE =
+@@ -37,6 +42,7 @@
+ 	"\t-d --daemon\t\tRun in background\n"
+ 	"\t-D --loglevel=level\t'error', 'info', 'notice',... or 0..10\n"
+ 	"\t-n --name=progname\tUse this program name for lircrc matching\n"
++	"\t-l --led=led_name\tled blinking using sysfs one-shot LED Trigger\n"
+ 	"\t-h --help\t\tDisplay usage summary\n"
+ 	"\t-v --version\t\tDisplay version\n";
  
- 	prog = "irexec " VERSION;
- 	while (1) {
-@@ -42,9 +49,10 @@
- 			{"version", no_argument, NULL, 'v'},
- 			{"daemon", no_argument, NULL, 'd'},
- 			{"name", required_argument, NULL, 'n'},
-+			{"led", required_argument, NULL, 'l'},
- 			{0, 0, 0, 0}
- 		};
--		c = getopt_long(argc, argv, "hvdn:", long_options, NULL);
-+		c = getopt_long(argc, argv, "hvdnl:", long_options, NULL);
- 		if (c == -1)
- 			break;
+@@ -45,6 +51,7 @@
+ 	{ "version",  no_argument,	 NULL, 'v' },
+ 	{ "daemon",   no_argument,	 NULL, 'd' },
+ 	{ "name",     required_argument, NULL, 'n' },
++	{ "led",      required_argument, NULL, 'l' },
+ 	{ "loglevel", required_argument, NULL, 'D' },
+ 	{ 0,          0,		 0,    0   }
+ };
+@@ -55,6 +62,9 @@
+ 
+ static char path[256] = {0};
+ 
++static char *led_name = NULL;
++static char pathl[255] = {};
++static int fd;
+ 
+ /** Run shell command line in isolated process using double fork(). */
+ static void run_command(const char* cmd)
+@@ -107,6 +117,11 @@
+ 			continue;
+ 		r = lirc_code2char(config, code, &c);
+ 		while (r == 0 && c != NULL) {
++			if (led_name) {
++				fd = open(pathl, O_WRONLY);
++				write(fd, "1", 1);
++				close(fd);
++			}
+ 			run_command(c);
+ 			r = lirc_code2char(config, code, &c);
+ 		}
+@@ -151,7 +166,7 @@
+ {
+ 	int c;
+ 
+-	while ((c = getopt_long(argc, argv, "D:hvdn:", options, NULL)) != -1) {
++	while ((c = getopt_long(argc, argv, "D:hvdn:l:", options, NULL)) != -1) {
  		switch (c) {
-@@ -54,6 +62,7 @@
- 			printf("\t -v --version\t\tdisplay version\n");
- 			printf("\t -d --daemon\t\trun in background\n");
- 			printf("\t -n --name\t\tuse this program name\n");
-+			printf("\t -l --led [led name]\tled blinking using sysfs one-shot LED Trigger \n");
- 			return (EXIT_SUCCESS);
- 		case 'v':
- 			printf("%s\n", prog);
-@@ -64,6 +73,9 @@
+ 		case 'h':
+ 			puts(USAGE);
+@@ -165,6 +180,9 @@
  		case 'n':
- 			program = optarg;
+ 			opt_progname = optarg;
  			break;
 +		case 'l':
 +			led_name = optarg;
 +			break;
- 		default:
- 			printf("Usage: %s [options] [config_file]\n", argv[0]);
- 			return (EXIT_FAILURE);
-@@ -82,6 +94,27 @@
- 		char *c;
- 		int ret;
- 
-+		if (led_name) {
-+			sprintf(path, LED_ROOT, led_name);
-+			if (0 != access(path, F_OK)) {
-+				if (ENOENT == errno) {
-+					fprintf(stderr, "%s isn't in /sys/class/leds/\n", led_name);
-+					exit(EXIT_FAILURE);
-+				}
-+			}
-+
-+			sprintf(path, LED_TRIGGER, led_name);
-+			fd = open(path, O_WRONLY);
-+			if (write(fd, "oneshot", 7) < 0){
-+				fprintf(stderr, "One-shot LED Trigger isn't installed/accessible\n");
-+				close(fd);
+ 		case 'D':
+ 			opt_loglevel = string2loglevel(optarg);
+ 			break;
+@@ -181,5 +199,25 @@
+ 		fprintf(stderr, "Bad debug level: %s\n", optarg);
+ 		return EXIT_FAILURE;
+ 	}
++	if (led_name) {
++		sprintf(pathl, LED_ROOT, led_name);
++		if (0 != access(pathl, F_OK)) {
++			if (ENOENT == errno) {
++				fprintf(stderr, "%s isn't in /sys/class/leds/\n", led_name);
 +				exit(EXIT_FAILURE);
 +			}
-+			close(fd);
-+
-+			sprintf(path, LED_SHOT, led_name);
 +		}
 +
- 		if (daemonize) {
- 			if (daemon(0, 0) == -1) {
- 				fprintf(stderr, "%s: can't daemonize\n", prog);
-@@ -91,6 +124,7 @@
- 				exit(EXIT_FAILURE);
- 			}
- 		}
++		sprintf(pathl, LED_TRIGGER, led_name);
++		fd = open(pathl, O_WRONLY);
++		if (write(fd, "oneshot", 7) < 0){
++			fprintf(stderr, "One-shot LED Trigger isn't installed/accessible\n");
++			close(fd);
++			exit(EXIT_FAILURE);
++		}
++		close(fd);
 +
- 		while (lirc_nextcode(&code) == 0) {
- 			if (code == NULL)
- 				continue;
-@@ -99,6 +133,13 @@
- 					logprintf(LIRC_DEBUG,
- 						  "Execing command \"%s\"\n", c);
- 				}
-+
-+				if (led_name) {
-+					fd = open(path, O_WRONLY);
-+					write(fd, "1", 1);
-+					close(fd);
-+				}
-+
- 				r = system(c);
- 				if (r != 0) {
- 					logprintf(LIRC_NOTICE, 
++		sprintf(pathl, LED_SHOT, led_name);
++	}
+ 	return irexec(optind != argc ? argv[optind] : NULL);
+ }

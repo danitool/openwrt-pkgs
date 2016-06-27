@@ -1,0 +1,5 @@
+begin
+ prog = irexec
+ button = power
+ config = /etc/lirc/custom_script.sh&
+end

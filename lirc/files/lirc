@@ -1,20 +1,29 @@
 #!/bin/sh /etc/rc.common
-
-START=90
+START=94
 
 start() {
         echo "Starting lirc"
         mkdir -p /var/run/lirc
+
         # Use this for audio_alsa plugin:
         #/usr/bin/amixer -q set 'Auto Gain Control' off
         #/usr/bin/amixer -q set Mic capture 31%
+        # Workaround for audio_alsa bug: poke alsa input with one dummy recording
+        #/usr/bin/arecord -q -d 1 -r48000 -f S16_LE -c1 -t raw -D plughw:0,0 > /dev/null
         #/usr/sbin/lircd --driver=audio_alsa -d plughw@24000
+
         # Use this for default plugin:
-        /usr/sbin/lircd -d /dev/lirc0                                           
+        /usr/sbin/lircd -d /dev/lirc0
+        
+        # If you want to execute irexec daemon. Led blink option needs
+        # ledtrig oneshot ledtrigger kernel driver
+        #/usr/sbin/irexec -l HW556:red:message --daemon /etc/lirc/lircrc
+        #echo 50 > /sys/class/leds/HW556\:red\:message/delay_on
+        #echo 1 > /sys/class/leds/HW556\:red\:message/delay_off
 }
 
 stop() {
-        echo "Stopping lirc"                                                 
-        /bin/kill `pidof lircd`
-        return 0                                                                
+        echo "Stopping lirc"                                                    
+        /bin/kill -s KILL `pidof lircd`                                                 
+        return 0
 }
