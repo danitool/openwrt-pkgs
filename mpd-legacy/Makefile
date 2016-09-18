@@ -13,7 +13,7 @@ PKG_VERSION:=0.13.2
 PKG_RELEASE:=1
 
 PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.bz2
-PKG_SOURCE_URL:=http://www.musicpd.org/uploads/files/
+PKG_SOURCE_URL:=http://www.musicpd.org/download/mpd/0.13/
 PKG_MD5SUM:=b461896369949ff3cff955692ead9f8b
 
 include $(INCLUDE_DIR)/package.mk
