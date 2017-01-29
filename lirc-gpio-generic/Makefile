@@ -60,7 +60,7 @@ define KernelPackage/lirc_gpio_generic/description
 endef
 
 define Build/Prepare
-	$(CP) ./kernel-patches/ar71xx/728-MIPS-ath79-add-gpio-irq.patch \
+	$(CP) ./kernel-patches/ar71xx/736-MIPS-ath79-add-gpio-irq.patch \
 		$(TOPDIR)/target/linux/ar71xx/patches-3.18/
 	$(CP) ./kernel-patches/brcm63xx/904-CC-irq_bcm_ext-gpio_to_irq.patch \
 		$(TOPDIR)/target/linux/brcm63xx/patches-3.18/
