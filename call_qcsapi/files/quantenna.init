@@ -1,0 +1,63 @@
+#!/bin/sh /etc/rc.common
+
+START=99
+
+QCS_CALL="/usr/bin/call_qcsapi_sockrpc --host 1.1.1.2"
+LED_GREEN="/sys/class/leds/h500-s:green:wifi/brightness"
+
+check_qtn_ready(){
+	local is_startprod_done iter
+	
+	iter=0
+	is_startprod_done=`$QCS_CALL is_startprod_done`
+	while [[ "$is_startprod_done" != "1" ]] ; do
+        	is_startprod_done=`$QCS_CALL is_startprod_done`
+
+        	if [[ "$is_startprod_done" == "0" ]] ; then
+			echo "start Quantenna wifi"
+			$QCS_CALL startprod
+        	fi
+
+		if [ $iter == 30 ]; then
+			echo "QTN SoC is not ready yet..."
+			sleep $iter
+		else
+			sleep 2
+			iter=$((iter+1))
+		fi
+    	done
+}
+
+check_rf_ready(){
+	local is_rf_done iter
+	
+	iter=0
+	is_rf_done=`$QCS_CALL rfstatus`
+	while [[ "$is_rf_done" != "On" ]] ; do
+        	is_rf_done=`$QCS_CALL rfstatus`
+		sleep 1
+        	if [[ "$is_rf_done" == "Turning off" ]] ; then
+			echo "wifi disable"
+			$QCS_CALL rfenable 0
+			sleep 2
+
+        	elif [[ "$is_rf_done" == "Off" ]] ; then
+			echo "wifi enable"
+			$QCS_CALL rfenable 1
+			sleep 3
+        	fi
+    	done
+}
+
+start() {
+	check_qtn_ready
+	check_rf_ready
+	/bin/echo 1 > $LED_GREEN
+	$QCS_CALL set_channel wifi0 44
+
+	echo "Quantenna job done"
+}
+
+stop() {
+	$QCS_CALL do_system_action reboot
+}
