@@ -7,3 +7,4 @@ Linux kernel 5.4.72
 * **call_qcsapi**: quantenna tools adapted for the Sercomm H500-s to make its wifi work.
 * **luci-app-tn-vsftpd**: LuCI support for vsftpd. It requires vsftpd-uci package.
 * **vsftpd-uci**: vsftpd mod with UCI support
+* **phytool**: low level access to ethernet PHY like Marvell 88E1518
