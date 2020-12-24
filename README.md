@@ -11,3 +11,4 @@ Linux kernel 5.4.83
 * **amule**: p2p client, ed2k downloads
 * **libcryptopp**: library required for amule
 * **wxbase**: library required for amule
+* **dump-cp15**: kernel module to dump the CP15 registers on ARM boards
