@@ -12,3 +12,4 @@ Linux kernel 5.4.83
 * **libcryptopp**: library required for amule
 * **wxbase**: library required for amule
 * **dump-cp15**: kernel module to dump the CP15 registers on ARM boards
+* **dummy-irq**: kernel module to test external IRQs on GPIO lines
