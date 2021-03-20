@@ -48,7 +48,7 @@ CONFIGURE_ARGS+= \
 	--disable-rpath \
 	--with-gnu-ld \
 	--disable-ccache \
-	--disable-optimize \
+	--enable-optimize \
 	--disable-profile \
 	--disable-monolithic \
 	--enable-amule-daemon \
@@ -75,8 +75,7 @@ CONFIGURE_ARGS+= \
 	--with-libupnp-prefix="$(STAGING_DIR)/usr" \
 	--without-x \
 	--disable-debug \
-	--enable-mmap \
-	--enable-optimize
+	--enable-mmap
 
 TARGET_LDFLAGS += -liconv 
 
