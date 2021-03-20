@@ -4,11 +4,10 @@ START=99
 USE_PROCD=1
 
 CONF_TMP_DIR="/var/run/aMule"
-CONF_NV_DIR="/root/.aMule"
+CONF_NV_DIR="/etc/amuled"
 
 TEMPDIR=`awk -F= '$1 == "TempDir" {print $2}' "$CONF_NV_DIR/amule.conf"`
 INCOMINGDIR=`awk -F= '$1 == "IncomingDir" {print $2}' "$CONF_NV_DIR/amule.conf"`
-#AMULED_HOME="/root/.aMule"
 
 start_service() {
 	# Fix permissions to allow amuled running as a non root user
@@ -16,25 +15,16 @@ start_service() {
 	[ $(ls -lad "$TEMPDIR" | awk '{print $1}') != "drwxrwxrwx" ] && chmod 0777 "$TEMPDIR"
 	[ $(ls -lad "$INCOMINGDIR" | awk '{print $1}') != "drwxrwxrwx" ] && chmod 0777 "$INCOMINGDIR"
 
-	# Symbolic links to /temp to avoid wearing our flash chip
-	[ ! -d "$CONF_TMP_DIR" ] && mkdir -m 0777 -p "$CONF_TMP_DIR"
-	[ ! -L $CONF_NV_DIR/antileech.log ]     && ln -sf "$CONF_TMP_DIR/antileech.log"     "$CONF_NV_DIR/antileech.log"
-	[ ! -L $CONF_NV_DIR/antileech.log.bak ] && ln -sf "$CONF_TMP_DIR/antileech.log.bak" "$CONF_NV_DIR/antileech.log.bak"
-	[ ! -L $CONF_NV_DIR/clients.met ]       && ln -sf "$CONF_TMP_DIR/clients.met"       "$CONF_NV_DIR/clients.met"
-	#[ ! -L $CONF_NV_DIR/clients.met.bak ]   && ln -sf "$CONF_TMP_DIR/clients.met.bak"   "$CONF_NV_DIR/clients.met.bak"
-	#[ ! -L $CONF_NV_DIR/known.met ]         && ln -sf "$CONF_TMP_DIR/known.met"         "$CONF_NV_DIR/known.met"
-	#[ ! -L $CONF_NV_DIR/known2_64.met ]     && ln -sf "$CONF_TMP_DIR/known2_64.met"     "$CONF_NV_DIR/known2_64.met"
-	[ ! -L $CONF_NV_DIR/logfile ]           && ln -sf "$CONF_TMP_DIR/logfile"           "$CONF_NV_DIR/logfile"
-	[ ! -L $CONF_NV_DIR/logfile.bak ]       && ln -sf "$CONF_TMP_DIR/logfile.bak"       "$CONF_NV_DIR/logfile.bak"
-	[ ! -L $CONF_NV_DIR/server.met ]        && ln -sf "$CONF_TMP_DIR/server.met"        "$CONF_NV_DIR/server.met"
-	#[ ! -L $CONF_NV_DIR/server.met.bak ]    && ln -sf "$CONF_TMP_DIR/server.met.bak"    "$CONF_NV_DIR/server.met.bak"
-	[ ! -L $CONF_NV_DIR/src_index.dat ]     && ln -sf "$CONF_TMP_DIR/src_index.dat"     "$CONF_NV_DIR/src_index.dat"
-	[ ! -L $CONF_NV_DIR/statistics.dat ]    && ln -sf "$CONF_TMP_DIR/statistics.dat"    "$CONF_NV_DIR/statistics.dat"
-	[ ! -L $CONF_NV_DIR/load_index.dat ]    && ln -sf "$CONF_TMP_DIR/load_index.dat"    "$CONF_NV_DIR/load_index.dat"
+	# copy files to /temp to avoid wearing our flash chip
+	[ ! -d $CONF_TMP_DIR ] && mkdir -m 0777 -p "$CONF_TMP_DIR"
+	[ ! -f $CONF_TMP_DIR/amule.conf ]    && cp "$CONF_NV_DIR/amule.conf"    "$CONF_TMP_DIR/amule.conf"
+	[ ! -f $CONF_TMP_DIR/known.met ]     && cp "$CONF_NV_DIR/known.met"     "$CONF_TMP_DIR/known.met"
+	[ ! -f $CONF_TMP_DIR/known2_64.met ] && cp "$CONF_NV_DIR/known2_64.met" "$CONF_TMP_DIR/known2_64.met"
+	[ ! -f $CONF_TMP_DIR/clients.met ]   && cp "$CONF_NV_DIR/clients.met"   "$CONF_TMP_DIR/clients.met"
 
 	procd_open_instance
-	procd_set_param command /usr/bin/amuled -c "$CONF_NV_DIR"
-	procd_set_param file "$CONF_NV_DIR/amule.conf"
+	procd_set_param command /usr/bin/amuled -c "$CONF_TMP_DIR"
+	#procd_set_param file "$CONF_TMP_DIR/amule.conf"
 	procd_set_param netdev br-lan
 	procd_set_param pidfile /var/run/amuled.pid
 	procd_set_param stdout 1 # forward stdout of the command to logd
@@ -42,4 +32,11 @@ start_service() {
 	procd_set_param user nobody # run service as user nobody
 	procd_set_param respawn
 	procd_close_instance
+}
+
+stop_service() {
+	[ -f $CONF_TMP_DIR/amule.conf ]    && cp -f "$CONF_TMP_DIR/amule.conf"    "$CONF_NV_DIR/amule.conf"
+	[ -f $CONF_TMP_DIR/known.met ]     && cp -f "$CONF_TMP_DIR/known.met"     "$CONF_NV_DIR/known.met"
+	[ -f $CONF_TMP_DIR/known2_64.met ] && cp -f "$CONF_TMP_DIR/known2_64.met" "$CONF_NV_DIR/known2_64.met"
+	[ -f $CONF_TMP_DIR/clients.met ]   && cp -f "$CONF_TMP_DIR/clients.met"   "$CONF_NV_DIR/clients.met"
 }

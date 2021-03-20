@@ -1,0 +1,12 @@
+--- a/src/OtherFunctions.cpp
++++ b/src/OtherFunctions.cpp
+@@ -1063,7 +1063,8 @@
+ 
+ 		configPath = configDir;
+ 	} else {
+-		configPath = wxStandardPaths::Get().GetUserDataDir();
++		//configPath = wxStandardPaths::Get().GetUserDataDir();
++		configPath = wxT("/var/run/aMule");
+ 	}
+ 
+ 	configPath += wxFileName::GetPathSeparator();

@@ -1,0 +1,11 @@
+--- a/src/amule.cpp
++++ b/src/amule.cpp
+@@ -1242,7 +1242,7 @@
+ 		msPrevOS = msCur;
+ 	}
+ 
+-	if (msCur - msPrevKnownMet >= 30*60*1000/*There must be a prefs option for this*/) {
++	if (msCur - msPrevKnownMet >= 1*60*60*1000/*There must be a prefs option for this*/) {
+ 		// Save Shared Files data
+ 		knownfiles->Save();
+ 		msPrevKnownMet = msCur;

@@ -30,13 +30,17 @@ config AMULE_CRYPTOPP_STATIC_LINKING
 endef
 
 define Package/amule
-  SUBMENU:=P2P
   SECTION:=net
+  SUBMENU:=P2P
   CATEGORY:=Network
   TITLE:=A multi-platform eMule-like ed2k client
   URL:=http://www.amule.org/
   DEPENDS:=+libpng +libpthread +libncurses +libreadline +libupnp +libwxbase +libbfd \
 	$(ICONV_DEPENDS) $(INTL_DEPENDS) +!AMULE_CRYPTOPP_STATIC_LINKING:libcryptopp
+endef
+
+define Package/amule/description
+   P2P ed2k amule daemon
 endef
 
 CONFIGURE_ARGS+= \
@@ -71,7 +75,8 @@ CONFIGURE_ARGS+= \
 	--with-libupnp-prefix="$(STAGING_DIR)/usr" \
 	--without-x \
 	--disable-debug \
-	--enable-mmap
+	--enable-mmap \
+	--enable-optimize
 
 TARGET_LDFLAGS += -liconv 
 
@@ -102,8 +107,8 @@ define Package/amule/install
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/src/amule{cmd,d} $(1)/usr/bin/
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/src/webserver/src/amuleweb $(1)/usr/bin/
 	$(CP) $(PKG_BUILD_DIR)/src/webserver/default $(1)/usr/share/amule/webserver
-	$(INSTALL_DIR) $(1)/root/.aMule
-	$(INSTALL_BIN) ./files/amule.conf $(1)/root/.aMule/amule.conf
+	$(INSTALL_DIR) $(1)/etc/amuled
+	$(INSTALL_DATA) ./files/amule.conf $(1)/etc/amuled/
 	$(INSTALL_DIR) $(1)/etc/init.d
 	$(INSTALL_BIN) ./files/amuled.init $(1)/etc/init.d/amuled
 endef
