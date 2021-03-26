@@ -22,6 +22,9 @@ start_service() {
 	[ ! -f $CONF_TMP_DIR/known2_64.met ] && cp "$CONF_NV_DIR/known2_64.met" "$CONF_TMP_DIR/known2_64.met"
 	[ ! -f $CONF_TMP_DIR/clients.met ]   && cp "$CONF_NV_DIR/clients.met"   "$CONF_TMP_DIR/clients.met"
 
+	[ ! -f $CONF_TMP_DIR/preferences.dat ] && cp -f "$CONF_NV_DIR/preferences.dat" "$CONF_TMP_DIR/preferences.dat"
+	[ ! -f $CONF_TMP_DIR/cryptkey.dat ]    && cp -f "$CONF_NV_DIR/cryptkey.dat"    "$CONF_TMP_DIR/cryptkey.dat"
+
 	procd_open_instance
 	procd_set_param command /usr/bin/amuled -c "$CONF_TMP_DIR"
 	#procd_set_param file "$CONF_TMP_DIR/amule.conf"
@@ -39,4 +42,7 @@ stop_service() {
 	[ -f $CONF_TMP_DIR/known.met ]     && cp -f "$CONF_TMP_DIR/known.met"     "$CONF_NV_DIR/known.met"
 	[ -f $CONF_TMP_DIR/known2_64.met ] && cp -f "$CONF_TMP_DIR/known2_64.met" "$CONF_NV_DIR/known2_64.met"
 	[ -f $CONF_TMP_DIR/clients.met ]   && cp -f "$CONF_TMP_DIR/clients.met"   "$CONF_NV_DIR/clients.met"
+
+	[ ! -f $CONF_NV_DIR/preferences.dat ] && cp "$CONF_TMP_DIR/preferences.dat" "$CONF_NV_DIR/preferences.dat"
+	[ ! -f $CONF_NV_DIR/cryptkey.dat ]    && cp "$CONF_TMP_DIR/cryptkey.dat"    "$CONF_NV_DIR/cryptkey.dat"
 }
