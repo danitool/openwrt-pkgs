@@ -24,6 +24,7 @@ start_service() {
 
 	[ ! -f $CONF_TMP_DIR/preferences.dat ] && cp -f "$CONF_NV_DIR/preferences.dat" "$CONF_TMP_DIR/preferences.dat"
 	[ ! -f $CONF_TMP_DIR/cryptkey.dat ]    && cp -f "$CONF_NV_DIR/cryptkey.dat"    "$CONF_TMP_DIR/cryptkey.dat"
+	[ ! -f $CONF_TMP_DIR/lastversion ]     && cp -f "$CONF_NV_DIR/lastversion"     "$CONF_TMP_DIR/lastversion"
 
 	procd_open_instance
 	procd_set_param command /usr/bin/amuled -c "$CONF_TMP_DIR"
@@ -45,4 +46,5 @@ stop_service() {
 
 	[ ! -f $CONF_NV_DIR/preferences.dat ] && cp "$CONF_TMP_DIR/preferences.dat" "$CONF_NV_DIR/preferences.dat"
 	[ ! -f $CONF_NV_DIR/cryptkey.dat ]    && cp "$CONF_TMP_DIR/cryptkey.dat"    "$CONF_NV_DIR/cryptkey.dat"
+	[ ! -f $CONF_NV_DIR/lastversion ]     && cp "$CONF_TMP_DIR/lastversion"     "$CONF_NV_DIR/lastversion"
 }
