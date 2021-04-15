@@ -26,6 +26,8 @@ start_service() {
 	[ ! -f $CONF_TMP_DIR/cryptkey.dat ]    && cp -f "$CONF_NV_DIR/cryptkey.dat"    "$CONF_TMP_DIR/cryptkey.dat"
 	[ ! -f $CONF_TMP_DIR/lastversion ]     && cp -f "$CONF_NV_DIR/lastversion"     "$CONF_TMP_DIR/lastversion"
 
+	chmod 0666 "$CONF_TMP_DIR"/*
+
 	procd_open_instance
 	procd_set_param command /usr/bin/amuled -c "$CONF_TMP_DIR"
 	#procd_set_param file "$CONF_TMP_DIR/amule.conf"
