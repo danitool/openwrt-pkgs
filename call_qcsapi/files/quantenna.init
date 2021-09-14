@@ -3,7 +3,7 @@
 START=99
 
 QCS_CALL="/usr/bin/call_qcsapi_sockrpc --host 1.1.1.2"
-LED_GREEN="/sys/class/leds/h500-s:green:wifi/brightness"
+LED_GREEN="/sys/class/leds/green:wifi/brightness"
 
 check_qtn_ready(){
 	local is_startprod_done iter
