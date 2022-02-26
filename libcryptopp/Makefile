@@ -8,19 +8,18 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=libcryptopp
-PKG_VERSION:=8.2.0
+PKG_VERSION:=8.6.0
 PKG_RELEASE:=1
 
 PKG_SOURCE:=cryptopp$(subst .,,$(PKG_VERSION)).zip
 PKG_SOURCE_URL:=https://www.cryptopp.com/
-PKG_MD5SUM:=8a8bcb436af83e16d2227bd4ac642243
+PKG_MD5SUM:=c5441a67a351749bdeacc1ffb0c01878
 
+PKG_INSTALL:=1
+PKG_BUILD_PARALLEL:=1
 PKG_BUILD_DIR:=$(BUILD_DIR)/$(PKG_NAME)/$(PKG_NAME)-$(PKG_VERSION)
 
-CMAKE_INSTALL:=1
-
 include $(INCLUDE_DIR)/package.mk
-include $(INCLUDE_DIR)/cmake.mk
 
 define Package/libcryptopp
   SECTION:=libs
@@ -36,25 +35,35 @@ define Package/package/libcryptopp
   abstract base classes.
 endef
 
-CMAKE_OPTIONS += -DCMAKE_CXX_FLAGS="$(FPIC)"
-CMAKE_OPTIONS += -DBUILD_STATIC=ON
-CMAKE_OPTIONS += -DBUILD_SHARED=ON
+TARGET_CFLAGS += $(FPIC)
 
 UNPACK_CMD=cd $(PKG_BUILD_DIR) && unzip "$(DL_DIR)/$(PKG_SOURCE)"
-define Build/Prepare
-	$(Build/Prepare/Default)
-	cd $(PKG_BUILD_DIR) && rm -f GNUmakefile GNUmakefile-cross
+
+define Build/Compile
+	+$(MAKE) $(PKG_JOBS) -C $(PKG_BUILD_DIR) \
+		$(TARGET_CONFIGURE_OPTS) \
+		CROSS_COMPILE="$(TARGET_CROSS)" \
+		CC="$(TARGET_CC)" \
+		LD="$(TARGET_CROSS)ld" \
+		RANLIB="$(TARGET_CROSS)ranlib" \
+		CFLAGS="$(TARGET_CFLAGS)" \
+		CPPFLAGS="$(TARGET_CPPFLAGS)" \
+		LDFLAGS="$(TARGET_LDFLAGS)" \
+		STAGING_DIR="$(STAGING_DIR)" \
+		PREFIX=/usr \
+		all
 endef
+
 define Build/InstallDev
 	$(INSTALL_DIR) $(1)/usr/include/cryptopp
-	$(CP) $(PKG_INSTALL_DIR)/usr/include/cryptopp/* $(1)/usr/include/cryptopp/
+	$(CP) $(PKG_INSTALL_DIR)/usr/local/include/cryptopp/* $(1)/usr/include/cryptopp/
 	$(INSTALL_DIR) $(1)/usr/lib
-	$(CP) $(PKG_INSTALL_DIR)/usr/lib/libcryptopp.{a,so*} $(1)/usr/lib/
+	$(CP) $(PKG_INSTALL_DIR)/usr/local/lib/libcryptopp.{a,so*} $(1)/usr/lib/
 endef
 
 define Package/libcryptopp/install
 	$(INSTALL_DIR) $(1)/usr/lib
-	$(CP) $(PKG_INSTALL_DIR)/usr/lib/libcryptopp.so* $(1)/usr/lib/
+	$(CP) $(PKG_INSTALL_DIR)/usr/local/lib/libcryptopp.so* $(1)/usr/lib/
 endef
 
 $(eval $(call BuildPackage,libcryptopp))
