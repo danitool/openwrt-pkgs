@@ -35,7 +35,8 @@ define Package/package/libcryptopp
   abstract base classes.
 endef
 
-TARGET_CFLAGS += $(FPIC)
+TARGET_CXXFLAGS += $(FPIC) -pthread
+TARGET_LDFLAGS += -pthread 
 
 UNPACK_CMD=cd $(PKG_BUILD_DIR) && unzip "$(DL_DIR)/$(PKG_SOURCE)"
 
@@ -43,14 +44,7 @@ define Build/Compile
 	+$(MAKE) $(PKG_JOBS) -C $(PKG_BUILD_DIR) \
 		$(TARGET_CONFIGURE_OPTS) \
 		CROSS_COMPILE="$(TARGET_CROSS)" \
-		CC="$(TARGET_CC)" \
-		LD="$(TARGET_CROSS)ld" \
-		RANLIB="$(TARGET_CROSS)ranlib" \
-		CFLAGS="$(TARGET_CFLAGS)" \
-		CPPFLAGS="$(TARGET_CPPFLAGS)" \
-		LDFLAGS="$(TARGET_LDFLAGS)" \
-		STAGING_DIR="$(STAGING_DIR)" \
-		PREFIX=/usr \
+		CXXFLAGS="$(TARGET_CXXFLAGS)" \
 		all
 endef
 
